@@ -1,0 +1,3409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StaffPulse - Staff Attendance & Management System</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Print styles for reports */
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      .print-break-inside-avoid {
+        break-inside: avoid;
+      }
+      .print-shadow-none {
+        box-shadow: none !important;
+        border: 1px solid #e2e8f0 !important;
+      }
+      nav, header, #sidebar, .action-buttons, #toastContainer, .modal {
+        display: none !important;
+      }
+      main {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+      }
+    }
+    .print-only {
+      display: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 antialiased">
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full no-print"></div>
+
+  <!-- Global Confirm / Alert Modal -->
+  <div id="confirmModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden no-print p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+      <div class="flex items-center gap-3 mb-4">
+        <div id="confirmModalIcon" class="w-10 h-10 rounded-full flex items-center justify-center bg-red-100 text-red-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <div>
+          <h3 id="confirmModalTitle" class="text-lg font-bold text-slate-900">Confirm Action</h3>
+          <p id="confirmModalSubtitle" class="text-xs text-slate-500">Please review before continuing</p>
+        </div>
+      </div>
+      <p id="confirmModalMessage" class="text-sm text-slate-600 mb-6 leading-relaxed">Are you sure you want to proceed?</p>
+      <div class="flex items-center justify-end gap-3">
+        <button id="confirmModalCancelBtn" type="button" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">Cancel</button>
+        <button id="confirmModalActionBtn" type="button" class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo and Branding -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-lg font-bold text-slate-900 tracking-tight">StaffPulse</span>
+              <span class="px-2 py-0.5 text-[10px] font-semibold bg-brand-100 text-brand-700 rounded-full uppercase tracking-wider">Enterprise</span>
+            </div>
+            <p class="text-xs text-slate-500 hidden sm:block">Staff Attendance, Leaves & Reporting System</p>
+          </div>
+        </div>
+
+        <!-- Live Clock & Quick Info -->
+        <div class="flex items-center gap-4">
+          <div class="hidden md:flex flex-col items-end">
+            <span id="currentClock" class="text-sm font-semibold text-slate-800 font-mono">--:--:--</span>
+            <span id="currentDateDisplay" class="text-xs text-slate-500">Loading date...</span>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="flex items-center gap-2">
+            <button id="quickPunchBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-xs">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Quick Punch
+            </button>
+            <button id="openAddStaffModalBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-white hover:bg-brand-700 transition-colors shadow-xs shadow-brand-500/20">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+              Add Staff
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex space-x-1 sm:space-x-4 overflow-x-auto border-t border-slate-100 py-2 scrollbar-none" aria-label="Tabs">
+        <button data-tab="dashboard" class="tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap bg-brand-50 text-brand-700 shadow-xs">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          Dashboard (Today)
+        </button>
+        <button data-tab="staff" class="tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          Staff Directory (<span id="tabStaffCount">0</span>)
+        </button>
+        <button data-tab="attendance" class="tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          Attendance & Leaves
+        </button>
+        <button data-tab="individual-report" class="tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          Individual Monthly Report
+        </button>
+        <button data-tab="all-staff-report" class="tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          All Staff Monthly Report
+        </button>
+        <button data-tab="settings" class="tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Settings & Rules
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: DASHBOARD (TODAY'S OVERVIEW) -->
+    <!-- ========================================== -->
+    <section id="tab-dashboard" class="tab-pane space-y-6">
+      <!-- Date Banner & Punch Status -->
+      <div class="bg-gradient-to-r from-brand-700 via-indigo-700 to-slate-800 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="inline-block px-2.5 py-1 rounded-md bg-white/20 text-xs font-semibold backdrop-blur-xs mb-2">Today's Operation Desk</span>
+          <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight" id="dashboardGreeting">Daily Attendance Monitor</h1>
+          <p class="text-indigo-100 text-sm mt-1" id="dashboardSubtext">Tracking real-time check-ins, late marks, leaves, and absences for today.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="dashboardBulkPresentBtn" type="button" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold backdrop-blur-xs transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            Auto Mark On-Time
+          </button>
+          <button id="dashboardLogAttendanceBtn" type="button" class="px-4 py-2.5 rounded-xl bg-white text-brand-700 hover:bg-slate-100 text-xs font-bold shadow-md transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Log Entry
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Total Active Staff -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Staff</span>
+            <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            </div>
+          </div>
+          <div class="mt-4">
+            <span id="kpiTotalStaff" class="text-3xl font-extrabold text-slate-900">0</span>
+            <span class="text-xs text-slate-500 block mt-0.5">Enrolled staff members</span>
+          </div>
+        </div>
+
+        <!-- Present Today -->
+        <div class="bg-white p-5 rounded-xl border border-emerald-200 shadow-2xs flex flex-col justify-between bg-emerald-50/20">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Present Today</span>
+            <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+          <div class="mt-4">
+            <span id="kpiPresentToday" class="text-3xl font-extrabold text-emerald-700">0</span>
+            <span id="kpiPresentPercent" class="text-xs text-emerald-600 block mt-0.5">0% of total active</span>
+          </div>
+        </div>
+
+        <!-- Late Marks Today -->
+        <div class="bg-white p-5 rounded-xl border border-amber-200 shadow-2xs flex flex-col justify-between bg-amber-50/20">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider">Late Marks</span>
+            <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+          </div>
+          <div class="mt-4">
+            <span id="kpiLateToday" class="text-3xl font-extrabold text-amber-700">0</span>
+            <span class="text-xs text-amber-600 block mt-0.5">Past grace period</span>
+          </div>
+        </div>
+
+        <!-- Leaves Today -->
+        <div class="bg-white p-5 rounded-xl border border-blue-200 shadow-2xs flex flex-col justify-between bg-blue-50/20">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-blue-700 uppercase tracking-wider">On Leave</span>
+            <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+          </div>
+          <div class="mt-4">
+            <span id="kpiLeavesToday" class="text-3xl font-extrabold text-blue-700">0</span>
+            <span class="text-xs text-blue-600 block mt-0.5">Approved leaves</span>
+          </div>
+        </div>
+
+        <!-- Absent Today -->
+        <div class="bg-white p-5 rounded-xl border border-rose-200 shadow-2xs flex flex-col justify-between bg-rose-50/20 col-span-2 lg:col-span-1">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-rose-700 uppercase tracking-wider">Absences</span>
+            <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+          <div class="mt-4">
+            <span id="kpiAbsentToday" class="text-3xl font-extrabold text-rose-700">0</span>
+            <span class="text-xs text-rose-600 block mt-0.5">Unexcused / Missing</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Punch Desk & Today's Attendance Table -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Quick Punch Terminal Card -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Fast Punch Terminal
+              </h2>
+              <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-100 text-emerald-800">Online</span>
+            </div>
+
+            <form id="quickPunchForm" class="space-y-4">
+              <div>
+                <label for="quickPunchStaffSelect" class="block text-xs font-medium text-slate-700 mb-1">Select Staff Member</label>
+                <select id="quickPunchStaffSelect" class="w-full text-sm rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500 bg-slate-50 p-2.5 border" required>
+                  <option value="">-- Choose Staff --</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="quickPunchTime" class="block text-xs font-medium text-slate-700 mb-1">Time (24h)</label>
+                <div class="flex items-center gap-2">
+                  <input type="time" id="quickPunchTime" class="flex-1 text-sm rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500 bg-slate-50 p-2 border" required>
+                  <button type="button" id="quickPunchNowBtn" class="px-3 py-2 text-xs font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-lg border border-brand-200 transition-colors">Current</button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3 pt-2">
+                <button type="button" id="quickPunchInBtn" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-xs">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                  Clock In
+                </button>
+                <button type="button" id="quickPunchOutBtn" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-xs">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                  Clock Out
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
+            <span>Shift starts: <strong id="quickShiftStartDisplay" class="text-slate-700">09:00 AM</strong></span>
+            <span>Grace: <strong id="quickGraceDisplay" class="text-slate-700">15 mins</strong></span>
+          </div>
+        </div>
+
+        <!-- Today's Attendance Roster Table -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs lg:col-span-2 flex flex-col justify-between">
+          <div>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100 mb-4">
+              <div>
+                <h2 class="text-base font-bold text-slate-900">Today's Staff Roster (<span id="todayRosterDate">Today</span>)</h2>
+                <p class="text-xs text-slate-500">Live attendance log for current workday</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="text" id="todaySearchInput" placeholder="Filter staff..." class="text-xs rounded-lg border-slate-200 p-2 border focus:ring-brand-500 focus:border-brand-500 w-36 sm:w-44">
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-100">
+                    <th class="py-2.5 px-3">Staff</th>
+                    <th class="py-2.5 px-3">Shift</th>
+                    <th class="py-2.5 px-3">In Time</th>
+                    <th class="py-2.5 px-3">Out Time</th>
+                    <th class="py-2.5 px-3">Status / Late Mark</th>
+                    <th class="py-2.5 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="todayRosterTbody" class="divide-y divide-slate-100 text-slate-700">
+                  <!-- Dynamic roster rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span id="todayRosterSummary">Showing 0 staff</span>
+            <button id="viewAllAttendanceBtn" class="text-brand-600 hover:text-brand-700 font-semibold inline-flex items-center gap-1">
+              View Complete Attendance Log &rarr;
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: STAFF DIRECTORY -->
+    <!-- ========================================== -->
+    <section id="tab-staff" class="tab-pane hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Staff Directory</h1>
+          <p class="text-xs sm:text-sm text-slate-500">Manage employee profiles, shift schedules, grace periods, and active status.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="exportStaffCsvBtn" type="button" class="px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export Staff
+          </button>
+          <button id="addStaffModalBtn2" type="button" class="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Add New Staff
+          </button>
+        </div>
+      </div>
+
+      <!-- Filters & Search Toolbar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200">
+        <div class="flex flex-wrap items-center gap-3 flex-1">
+          <div class="relative flex-1 min-w-[200px]">
+            <input type="text" id="staffSearchInput" placeholder="Search by name, ID, role..." class="w-full text-xs pl-8 pr-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <select id="staffDeptFilter" class="text-xs py-2 px-3 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="">All Departments</option>
+            <option value="Engineering">Engineering</option>
+            <option value="Operations">Operations</option>
+            <option value="HR & Admin">HR & Admin</option>
+            <option value="Sales & Marketing">Sales & Marketing</option>
+            <option value="Finance">Finance</option>
+          </select>
+          <select id="staffStatusFilter" class="text-xs py-2 px-3 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+        <div class="text-xs text-slate-500 whitespace-nowrap" id="staffFilteredCount">
+          Showing 0 staff
+        </div>
+      </div>
+
+      <!-- Staff Cards / Table Grid -->
+      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                <th class="py-3 px-4">Staff Member</th>
+                <th class="py-3 px-4">Staff ID</th>
+                <th class="py-3 px-4">Department & Role</th>
+                <th class="py-3 px-4">Shift Schedule</th>
+                <th class="py-3 px-4">Grace Window</th>
+                <th class="py-3 px-4">Joining Date</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="staffDirectoryTbody" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: ATTENDANCE & LEAVES MANAGER -->
+    <!-- ========================================== -->
+    <section id="tab-attendance" class="tab-pane hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Attendance & Leave Tracking</h1>
+          <p class="text-xs sm:text-sm text-slate-500">Record in-time, out-time, late marks, leaves, and absences for any workday.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="openRecordAttendanceModalBtn" type="button" class="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Record Entry / Leave
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3 flex-1">
+          <div class="flex items-center gap-2">
+            <label for="attDateFilter" class="text-xs font-medium text-slate-600">Date:</label>
+            <input type="date" id="attDateFilter" class="text-xs py-1.5 px-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <button type="button" id="attFilterClearDateBtn" class="text-[11px] text-slate-500 hover:text-slate-800 underline">All Dates</button>
+          </div>
+          <select id="attStaffFilter" class="text-xs py-1.5 px-3 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="">All Staff Members</option>
+          </select>
+          <select id="attStatusFilter" class="text-xs py-1.5 px-3 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="">All Attendance Statuses</option>
+            <option value="Present">Present (On-Time)</option>
+            <option value="Late">Late Mark</option>
+            <option value="Half Day">Half Day</option>
+            <option value="Leave">On Leave</option>
+            <option value="Absent">Absent</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="exportAttendanceCsvBtn" type="button" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1">
+            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export Log CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Attendance Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                <th class="py-3 px-4">Date</th>
+                <th class="py-3 px-4">Staff Member</th>
+                <th class="py-3 px-4">In Time</th>
+                <th class="py-3 px-4">Out Time</th>
+                <th class="py-3 px-4">Working Hours</th>
+                <th class="py-3 px-4">Status & Late Marks</th>
+                <th class="py-3 px-4">Type / Remarks</th>
+                <th class="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceLogTbody" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+        <div class="p-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
+          <span id="attendanceLogCount">Showing 0 records</span>
+          <span>Automatic late marks calculated against shift start + grace window</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 4: INDIVIDUAL STAFF MONTHLY REPORT -->
+    <!-- ========================================== -->
+    <section id="tab-individual-report" class="tab-pane hidden space-y-6">
+      <!-- Report Header and Controls -->
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Individual Staff Monthly Report</h1>
+          <p class="text-xs sm:text-sm text-slate-500">Comprehensive punctuality, late mark, leave, and hours summary for individual employees.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Staff Selector -->
+          <div>
+            <label for="indivReportStaffSelect" class="sr-only">Staff Member</label>
+            <select id="indivReportStaffSelect" class="text-xs sm:text-sm py-2 px-3 rounded-lg border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-brand-500">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+          <!-- Month Selector -->
+          <div>
+            <label for="indivReportMonthSelect" class="sr-only">Month</label>
+            <input type="month" id="indivReportMonthSelect" class="text-xs sm:text-sm py-2 px-3 rounded-lg border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-brand-500">
+          </div>
+          <!-- Action Buttons -->
+          <button id="printIndivReportBtn" type="button" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Print / PDF
+          </button>
+          <button id="exportIndivCsvBtn" type="button" class="px-3.5 py-2 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-lg transition-colors flex items-center gap-1.5 border border-brand-200">
+            <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Printable Report Body Container -->
+      <div id="indivReportPrintArea" class="space-y-6">
+        <!-- Print Header -->
+        <div class="hidden print-only mb-6 border-b border-slate-300 pb-4">
+          <div class="flex justify-between items-start">
+            <div>
+              <h2 class="text-2xl font-black text-slate-900 tracking-tight">StaffPulse Staff Management</h2>
+              <p class="text-sm text-slate-600">Individual Monthly Performance & Attendance Audit Report</p>
+            </div>
+            <div class="text-right text-xs text-slate-500">
+              <p>Generated on: <span id="indivPrintGeneratedDate">--</span></p>
+              <p>Official HR Record</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Employee Info Header Card -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 print-shadow-none">
+          <div class="flex items-center gap-4">
+            <div id="indivStaffAvatar" class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 text-white font-black text-xl flex items-center justify-center shadow-md">
+              JD
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 id="indivStaffName" class="text-xl font-bold text-slate-900">John Doe</h2>
+                <span id="indivStaffStatusBadge" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800">Active</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">
+                <span id="indivStaffId" class="font-semibold text-slate-700">EMP-1001</span> &bull; 
+                <span id="indivStaffDept">Engineering</span> &bull; 
+                <span id="indivStaffRole">Senior Software Engineer</span>
+              </p>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Shift: <span id="indivStaffShift" class="font-medium text-slate-700">09:00 - 18:00</span> (Grace: <span id="indivStaffGrace" class="font-medium text-slate-700">15 min</span>) &bull; Joined: <span id="indivStaffJoined">01 Jan 2025</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-right print-shadow-none">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Reporting Period</span>
+            <span id="indivReportPeriodTitle" class="text-lg font-extrabold text-brand-700">October 2026</span>
+            <span id="indivReportPeriodDays" class="text-xs text-slate-500 block">31 Calendar Days &bull; 22 Workdays</span>
+          </div>
+        </div>
+
+        <!-- Monthly Metrics Scorecard -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <!-- Present Days -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs print-shadow-none">
+            <span class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block">Present Days</span>
+            <span id="indivMetricPresent" class="text-2xl font-extrabold text-emerald-700 mt-1 block">0</span>
+            <span id="indivMetricPresentSub" class="text-[11px] text-slate-500">0 On-time</span>
+          </div>
+          <!-- Late Marks -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs print-shadow-none">
+            <span class="text-[11px] font-semibold text-amber-700 uppercase tracking-wider block">Late Marks</span>
+            <span id="indivMetricLate" class="text-2xl font-extrabold text-amber-700 mt-1 block">0</span>
+            <span id="indivMetricLateMins" class="text-[11px] text-amber-600">0 mins total delay</span>
+          </div>
+          <!-- Leaves Taken -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs print-shadow-none">
+            <span class="text-[11px] font-semibold text-blue-700 uppercase tracking-wider block">Leaves Taken</span>
+            <span id="indivMetricLeaves" class="text-2xl font-extrabold text-blue-700 mt-1 block">0</span>
+            <span id="indivMetricLeavesSub" class="text-[11px] text-blue-600">Excused leaves</span>
+          </div>
+          <!-- Absences -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs print-shadow-none">
+            <span class="text-[11px] font-semibold text-rose-700 uppercase tracking-wider block">Absences</span>
+            <span id="indivMetricAbsences" class="text-2xl font-extrabold text-rose-700 mt-1 block">0</span>
+            <span class="text-[11px] text-rose-600">Unexcused</span>
+          </div>
+          <!-- Total Hours Worked -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs print-shadow-none">
+            <span class="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">Total Hours</span>
+            <span id="indivMetricHours" class="text-2xl font-extrabold text-slate-800 mt-1 block">0h 0m</span>
+            <span id="indivMetricAvgHours" class="text-[11px] text-slate-500">Avg 0.0h / day</span>
+          </div>
+          <!-- Attendance & Punctuality Rate -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs print-shadow-none">
+            <span class="text-[11px] font-semibold text-brand-700 uppercase tracking-wider block">Punctuality Rate</span>
+            <span id="indivMetricPunctuality" class="text-2xl font-extrabold text-brand-700 mt-1 block">0%</span>
+            <span id="indivMetricAttRate" class="text-[11px] text-slate-500">Attendance: 0%</span>
+          </div>
+        </div>
+
+        <!-- Monthly Visual Calendar Grid -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs print-shadow-none">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-base font-bold text-slate-900">Attendance Calendar View</h2>
+              <p class="text-xs text-slate-500">Day-by-day attendance map for the selected month</p>
+            </div>
+            <!-- Legend -->
+            <div class="flex flex-wrap items-center gap-3 text-xs">
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Present (On Time)</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Late Mark</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Leave</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Absent</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Weekend / Holiday</span>
+            </div>
+          </div>
+
+          <!-- Calendar Table -->
+          <div class="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-slate-400 mb-2">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+          <div id="indivCalendarGrid" class="grid grid-cols-7 gap-2">
+            <!-- Dynamically populated monthly calendar cells -->
+          </div>
+        </div>
+
+        <!-- Detailed Day-by-Day Log Table -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden print-shadow-none print-break-inside-avoid">
+          <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-slate-900">Itemized Day-by-Day Attendance Breakdown</h2>
+            <span id="indivTablePeriodNotice" class="text-xs text-slate-500">Month-to-date entries</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead>
+                <tr class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                  <th class="py-2.5 px-3">Date</th>
+                  <th class="py-2.5 px-3">Day</th>
+                  <th class="py-2.5 px-3">Status</th>
+                  <th class="py-2.5 px-3">In Time</th>
+                  <th class="py-2.5 px-3">Out Time</th>
+                  <th class="py-2.5 px-3">Duration</th>
+                  <th class="py-2.5 px-3">Late Mark</th>
+                  <th class="py-2.5 px-3">Remarks / Leave Category</th>
+                </tr>
+              </thead>
+              <tbody id="indivDailyBreakdownTbody" class="divide-y divide-slate-100 text-slate-700">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Print Sign-off Box -->
+        <div class="hidden print-only mt-10 pt-6 border-t border-slate-300">
+          <div class="grid grid-cols-2 gap-12 text-xs text-slate-600">
+            <div>
+              <p class="font-semibold text-slate-800">Employee Acknowledgement:</p>
+              <div class="border-b border-slate-400 h-12 mb-1"></div>
+              <p>Employee Signature &amp; Date</p>
+            </div>
+            <div>
+              <p class="font-semibold text-slate-800">HR / Department Head Approval:</p>
+              <div class="border-b border-slate-400 h-12 mb-1"></div>
+              <p>Authorized Signature &amp; Date</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 5: ALL STAFF MONTHLY REPORT -->
+    <!-- ========================================== -->
+    <section id="tab-all-staff-report" class="tab-pane hidden space-y-6">
+      <!-- Report Header and Controls -->
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold text-slate-900">All Staff Monthly Summary Report</h1>
+          <p class="text-xs sm:text-sm text-slate-500">Consolidated organization-wide attendance, punctuality, late marks, leaves, and absences.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Month Selector -->
+          <div class="flex items-center gap-1.5">
+            <label for="allReportMonthSelect" class="text-xs font-semibold text-slate-700">Month:</label>
+            <input type="month" id="allReportMonthSelect" class="text-xs sm:text-sm py-2 px-3 rounded-lg border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-brand-500">
+          </div>
+          <!-- Department Filter -->
+          <div class="flex items-center gap-1.5">
+            <label for="allReportDeptSelect" class="text-xs font-semibold text-slate-700">Dept:</label>
+            <select id="allReportDeptSelect" class="text-xs sm:text-sm py-2 px-3 rounded-lg border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-brand-500">
+              <option value="">All Departments</option>
+              <option value="Engineering">Engineering</option>
+              <option value="Operations">Operations</option>
+              <option value="HR & Admin">HR & Admin</option>
+              <option value="Sales & Marketing">Sales & Marketing</option>
+              <option value="Finance">Finance</option>
+            </select>
+          </div>
+          <!-- Print & Export -->
+          <button id="printAllReportBtn" type="button" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Print Summary
+          </button>
+          <button id="exportAllReportCsvBtn" type="button" class="px-3.5 py-2 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-lg transition-colors flex items-center gap-1.5 border border-brand-200">
+            <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export All Staff CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Printable All-Staff Container -->
+      <div id="allReportPrintArea" class="space-y-6">
+        <!-- Print Header -->
+        <div class="hidden print-only mb-6 border-b border-slate-300 pb-4">
+          <div class="flex justify-between items-start">
+            <div>
+              <h2 class="text-2xl font-black text-slate-900 tracking-tight">StaffPulse Staff Management</h2>
+              <p class="text-sm text-slate-600">All-Staff Monthly Attendance, Late Marks & Leaves Summary Report</p>
+            </div>
+            <div class="text-right text-xs text-slate-500">
+              <p>Period: <span id="allPrintPeriodTitle" class="font-bold text-slate-800">October 2026</span></p>
+              <p>Generated: <span id="allPrintGeneratedDate">--</span></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Executive Organization KPI Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs print-shadow-none">
+            <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Staff Evaluated</span>
+            <span id="allKpiStaffCount" class="text-2xl font-extrabold text-slate-900 mt-1 block">0</span>
+            <span class="text-[11px] text-slate-400">Total active headcount</span>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-emerald-200 shadow-2xs bg-emerald-50/20 print-shadow-none">
+            <span class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block">Avg Attendance</span>
+            <span id="allKpiAvgAttendance" class="text-2xl font-extrabold text-emerald-700 mt-1 block">0%</span>
+            <span class="text-[11px] text-emerald-600">Company-wide rate</span>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-amber-200 shadow-2xs bg-amber-50/20 print-shadow-none">
+            <span class="text-[11px] font-semibold text-amber-700 uppercase tracking-wider block">Total Late Marks</span>
+            <span id="allKpiTotalLate" class="text-2xl font-extrabold text-amber-700 mt-1 block">0</span>
+            <span id="allKpiLateStaffCount" class="text-[11px] text-amber-600">Across 0 staff</span>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-blue-200 shadow-2xs bg-blue-50/20 print-shadow-none">
+            <span class="text-[11px] font-semibold text-blue-700 uppercase tracking-wider block">Total Leaves</span>
+            <span id="allKpiTotalLeaves" class="text-2xl font-extrabold text-blue-700 mt-1 block">0</span>
+            <span class="text-[11px] text-blue-600">Approved leaves</span>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-rose-200 shadow-2xs bg-rose-50/20 print-shadow-none">
+            <span class="text-[11px] font-semibold text-rose-700 uppercase tracking-wider block">Total Absences</span>
+            <span id="allKpiTotalAbsences" class="text-2xl font-extrabold text-rose-700 mt-1 block">0</span>
+            <span class="text-[11px] text-rose-600">Unexcused</span>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-indigo-200 shadow-2xs bg-indigo-50/20 print-shadow-none">
+            <span class="text-[11px] font-semibold text-indigo-700 uppercase tracking-wider block">Total Hours Logged</span>
+            <span id="allKpiTotalHours" class="text-2xl font-extrabold text-indigo-700 mt-1 block">0h</span>
+            <span id="allKpiAvgHoursPerStaff" class="text-[11px] text-indigo-600">Avg 0h / staff</span>
+          </div>
+        </div>
+
+        <!-- Visual Analytics: Department Punctuality Chart -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
+          <!-- Department Attendance Chart -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <h2 class="text-sm font-bold text-slate-900 mb-1">Department Attendance vs Late Marks</h2>
+            <p class="text-xs text-slate-500 mb-4">Comparison of present days and late occurrences across teams</p>
+            <div class="relative h-64">
+              <canvas id="deptAttendanceChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Punctuality Distribution Chart -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <h2 class="text-sm font-bold text-slate-900 mb-1">Staff Punctuality Distribution</h2>
+            <p class="text-xs text-slate-500 mb-4">Overall breakdown of on-time, late marks, leaves, and absences</p>
+            <div class="relative h-64 flex items-center justify-center">
+              <canvas id="allStaffPunctualityPieChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Master Staff Monthly Summary Table -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden print-shadow-none">
+          <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-sm font-bold text-slate-900">Staff Monthly Attendance Roster (<span id="allReportTableMonthBadge">Month</span>)</h2>
+              <p class="text-xs text-slate-500">Aggregated monthly metrics per staff member</p>
+            </div>
+            <div class="flex items-center gap-2 no-print">
+              <input type="text" id="allReportSearchInput" placeholder="Filter table by name / ID..." class="text-xs rounded-lg border border-slate-200 py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500 w-52">
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead>
+                <tr class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                  <th class="py-3 px-3">Staff ID</th>
+                  <th class="py-3 px-3">Staff Member</th>
+                  <th class="py-3 px-3">Department</th>
+                  <th class="py-3 px-3 text-center">Workdays</th>
+                  <th class="py-3 px-3 text-center text-emerald-700">Present Days</th>
+                  <th class="py-3 px-3 text-center text-amber-700">Late Marks</th>
+                  <th class="py-3 px-3 text-center text-blue-700">Leaves</th>
+                  <th class="py-3 px-3 text-center text-rose-700">Absences</th>
+                  <th class="py-3 px-3 text-right">Total Hours</th>
+                  <th class="py-3 px-3 text-center">Attendance %</th>
+                  <th class="py-3 px-3 text-center">Punctuality %</th>
+                  <th class="py-3 px-3 text-center no-print">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="allStaffReportTbody" class="divide-y divide-slate-100 text-slate-700">
+                <!-- Dynamically populated rows -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="p-3 bg-slate-50/50 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
+            <span id="allReportTableRowCount">Showing 0 staff records</span>
+            <span class="text-[11px]">Formula: Attendance % = Present / Workdays &times; 100 &bull; Punctuality % = On-Time / Present &times; 100</span>
+          </div>
+        </div>
+
+        <!-- Print Footer Sign-off -->
+        <div class="hidden print-only mt-10 pt-6 border-t border-slate-300">
+          <div class="grid grid-cols-2 gap-12 text-xs text-slate-600">
+            <div>
+              <p class="font-semibold text-slate-800">HR Operations Manager:</p>
+              <div class="border-b border-slate-400 h-12 mb-1"></div>
+              <p>Signature &amp; Date</p>
+            </div>
+            <div>
+              <p class="font-semibold text-slate-800">Managing Director / Executive Approval:</p>
+              <div class="border-b border-slate-400 h-12 mb-1"></div>
+              <p>Signature &amp; Seal</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 6: SETTINGS & POLICIES -->
+    <!-- ========================================== -->
+    <section id="tab-settings" class="tab-pane hidden space-y-6">
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Attendance Policies & System Settings</h1>
+        <p class="text-xs sm:text-sm text-slate-500">Configure global shift timings, late mark grace periods, workweek schedules, and manage data.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Global Shift Rules -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+          <h2 class="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">
+            <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Shift & Grace Period Rules
+          </h2>
+          <p class="text-xs text-slate-500 mb-4">These default parameters apply to new staff and general punctuality calculations.</p>
+
+          <form id="settingsShiftForm" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="settingsDefaultShiftStart" class="block text-xs font-medium text-slate-700 mb-1">Default Shift Start</label>
+                <input type="time" id="settingsDefaultShiftStart" value="09:00" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+              <div>
+                <label for="settingsDefaultShiftEnd" class="block text-xs font-medium text-slate-700 mb-1">Default Shift End</label>
+                <input type="time" id="settingsDefaultShiftEnd" value="18:00" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+            </div>
+
+            <div>
+              <label for="settingsDefaultGrace" class="block text-xs font-medium text-slate-700 mb-1">Grace Period for Late Mark (Minutes)</label>
+              <input type="number" id="settingsDefaultGrace" value="15" min="0" max="120" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500">
+              <span class="text-[11px] text-slate-400 mt-1 block">Staff clocking in after Shift Start + Grace Period are automatically marked "Late".</span>
+            </div>
+
+            <div>
+              <label for="settingsLateThreshold" class="block text-xs font-medium text-slate-700 mb-1">Monthly Late Marks Flag Threshold</label>
+              <input type="number" id="settingsLateThreshold" value="3" min="1" max="10" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500">
+              <span class="text-[11px] text-slate-400 mt-1 block">Staff with &ge; this many late marks in a month receive an advisory warning flag.</span>
+            </div>
+
+            <div class="pt-2">
+              <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-xs transition-colors">
+                Save Shift Policies
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Data Backup & Reset -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">
+              <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zm0 5h16"/></svg>
+              Data Management & Backup
+            </h2>
+            <p class="text-xs text-slate-500 mb-4">Export full database as JSON, restore backups, or reset to realistic demo dataset.</p>
+
+            <div class="space-y-3">
+              <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div>
+                  <h3 class="text-xs font-bold text-slate-800">Export System Database (JSON)</h3>
+                  <p class="text-[11px] text-slate-500">Download all staff profiles, attendance logs, and settings</p>
+                </div>
+                <button id="backupDownloadBtn" type="button" class="px-3 py-1.5 text-xs font-semibold text-brand-700 bg-white border border-brand-200 hover:bg-brand-50 rounded-lg shadow-2xs transition-colors">
+                  Export JSON
+                </button>
+              </div>
+
+              <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div>
+                  <h3 class="text-xs font-bold text-slate-800">Restore Database (JSON)</h3>
+                  <p class="text-[11px] text-slate-500">Import a previously saved JSON backup</p>
+                </div>
+                <label class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg shadow-2xs transition-colors cursor-pointer">
+                  Import JSON
+                  <input type="file" id="backupFileInput" accept=".json" class="hidden">
+                </label>
+              </div>
+
+              <div class="p-3.5 rounded-xl border border-rose-100 bg-rose-50/50 flex items-center justify-between">
+                <div>
+                  <h3 class="text-xs font-bold text-rose-800">Reset to Sample Demo Dataset</h3>
+                  <p class="text-[11px] text-rose-600">Re-populates 8 staff members with realistic Oct 2026 logs</p>
+                </div>
+                <button id="resetDemoBtn" type="button" class="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-white border border-rose-200 hover:bg-rose-50 rounded-lg shadow-2xs transition-colors">
+                  Reset Data
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-3 border-t border-slate-100 text-[11px] text-slate-400">
+            StaffPulse uses in-browser local storage. Back up your data periodically to prevent loss when clearing browser cache.
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- MODALS -->
+  <!-- ========================================== -->
+
+  <!-- MODAL: ADD / EDIT STAFF -->
+  <div id="staffModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden no-print p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-in fade-in zoom-in duration-200 my-8">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div>
+          <h3 id="staffModalTitle" class="text-lg font-bold text-slate-900">Add New Staff Member</h3>
+          <p class="text-xs text-slate-500">Enter employee profile and shift schedule details</p>
+        </div>
+        <button id="closeStaffModalBtn" type="button" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="staffForm" class="space-y-4">
+        <input type="hidden" id="staffFormMode" value="create">
+        <input type="hidden" id="staffFormOriginalId" value="">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="staffInputId" class="block text-xs font-medium text-slate-700 mb-1">Staff ID / Code <span class="text-rose-500">*</span></label>
+            <input type="text" id="staffInputId" placeholder="e.g. EMP-1009" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500" required>
+          </div>
+          <div>
+            <label for="staffInputName" class="block text-xs font-medium text-slate-700 mb-1">Full Name <span class="text-rose-500">*</span></label>
+            <input type="text" id="staffInputName" placeholder="e.g. Sarah Connor" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500" required>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="staffInputDept" class="block text-xs font-medium text-slate-700 mb-1">Department <span class="text-rose-500">*</span></label>
+            <select id="staffInputDept" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500" required>
+              <option value="Engineering">Engineering</option>
+              <option value="Operations">Operations</option>
+              <option value="HR & Admin">HR & Admin</option>
+              <option value="Sales & Marketing">Sales & Marketing</option>
+              <option value="Finance">Finance</option>
+              <option value="Customer Support">Customer Support</option>
+            </select>
+          </div>
+          <div>
+            <label for="staffInputRole" class="block text-xs font-medium text-slate-700 mb-1">Designation / Role <span class="text-rose-500">*</span></label>
+            <input type="text" id="staffInputRole" placeholder="e.g. Lead Analyst" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500" required>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="staffInputEmail" class="block text-xs font-medium text-slate-700 mb-1">Work Email</label>
+            <input type="email" id="staffInputEmail" placeholder="sconnor@company.com" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500">
+          </div>
+          <div>
+            <label for="staffInputPhone" class="block text-xs font-medium text-slate-700 mb-1">Phone Number</label>
+            <input type="tel" id="staffInputPhone" placeholder="+1 (555) 234-5678" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label for="staffInputShiftStart" class="block text-xs font-medium text-slate-700 mb-1">Shift Start</label>
+            <input type="time" id="staffInputShiftStart" value="09:00" class="w-full text-xs rounded-lg border border-slate-200 p-2 bg-slate-50 focus:ring-brand-500 focus:border-brand-500" required>
+          </div>
+          <div>
+            <label for="staffInputShiftEnd" class="block text-xs font-medium text-slate-700 mb-1">Shift End</label>
+            <input type="time" id="staffInputShiftEnd" value="18:00" class="w-full text-xs rounded-lg border border-slate-200 p-2 bg-slate-50 focus:ring-brand-500 focus:border-brand-500" required>
+          </div>
+          <div>
+            <label for="staffInputGrace" class="block text-xs font-medium text-slate-700 mb-1">Grace Mins</label>
+            <input type="number" id="staffInputGrace" value="15" min="0" max="60" class="w-full text-xs rounded-lg border border-slate-200 p-2 bg-slate-50 focus:ring-brand-500 focus:border-brand-500" required>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="staffInputJoined" class="block text-xs font-medium text-slate-700 mb-1">Date Joined</label>
+            <input type="date" id="staffInputJoined" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500" required>
+          </div>
+          <div>
+            <label for="staffInputStatus" class="block text-xs font-medium text-slate-700 mb-1">Employment Status</label>
+            <select id="staffInputStatus" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <button id="cancelStaffModalBtn" type="button" class="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">Cancel</button>
+          <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-xs transition-colors">Save Staff Profile</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: RECORD / EDIT ATTENDANCE & LEAVES -->
+  <div id="attendanceModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden no-print p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-in fade-in zoom-in duration-200 my-8">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div>
+          <h3 id="attendanceModalTitle" class="text-lg font-bold text-slate-900">Record Attendance & Leaves</h3>
+          <p class="text-xs text-slate-500">Log clock in, clock out, leaves, or mark absence</p>
+        </div>
+        <button id="closeAttendanceModalBtn" type="button" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="attendanceForm" class="space-y-4">
+        <input type="hidden" id="attRecordEditId" value="">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="attFormStaffSelect" class="block text-xs font-medium text-slate-700 mb-1">Staff Member <span class="text-rose-500">*</span></label>
+            <select id="attFormStaffSelect" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500" required>
+              <option value="">-- Choose Staff --</option>
+            </select>
+          </div>
+          <div>
+            <label for="attFormDate" class="block text-xs font-medium text-slate-700 mb-1">Date <span class="text-rose-500">*</span></label>
+            <input type="date" id="attFormDate" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500" required>
+          </div>
+        </div>
+
+        <!-- Status selector -->
+        <div>
+          <label for="attFormStatus" class="block text-xs font-medium text-slate-700 mb-1">Attendance Status <span class="text-rose-500">*</span></label>
+          <select id="attFormStatus" class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500" required>
+            <option value="Present">Present (Automatic On-Time / Late Detection)</option>
+            <option value="Half Day">Half Day</option>
+            <option value="Leave">On Leave</option>
+            <option value="Absent">Absent (Unexcused)</option>
+          </select>
+        </div>
+
+        <!-- In Time and Out Time container (shown for Present/Half Day) -->
+        <div id="attFormTimesContainer" class="space-y-3 p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="attFormInTime" class="block text-xs font-medium text-slate-700 mb-1">In Time (Punch In)</label>
+              <input type="time" id="attFormInTime" class="w-full text-xs rounded-lg border border-slate-200 p-2 bg-white focus:ring-brand-500 focus:border-brand-500">
+            </div>
+            <div>
+              <label for="attFormOutTime" class="block text-xs font-medium text-slate-700 mb-1">Out Time (Punch Out)</label>
+              <input type="time" id="attFormOutTime" class="w-full text-xs rounded-lg border border-slate-200 p-2 bg-white focus:ring-brand-500 focus:border-brand-500">
+            </div>
+          </div>
+          <div id="attFormLatePreview" class="text-[11px] text-slate-600 hidden flex items-center gap-1.5 font-medium">
+            <!-- Dynamically shows late warning -->
+          </div>
+        </div>
+
+        <!-- Leave Details container (shown when Status == Leave) -->
+        <div id="attFormLeaveContainer" class="space-y-3 p-3.5 bg-blue-50/50 rounded-xl border border-blue-100 hidden">
+          <div>
+            <label for="attFormLeaveType" class="block text-xs font-medium text-blue-900 mb-1">Leave Category</label>
+            <select id="attFormLeaveType" class="w-full text-xs rounded-lg border border-blue-200 p-2 bg-white focus:ring-brand-500 focus:border-brand-500">
+              <option value="Casual Leave (CL)">Casual Leave (CL)</option>
+              <option value="Sick Leave (SL)">Sick Leave (SL)</option>
+              <option value="Paid / Earned Leave (PL)">Paid / Earned Leave (PL)</option>
+              <option value="Maternity / Paternity Leave">Maternity / Paternity Leave</option>
+              <option value="Unpaid Leave (LWP)">Leave Without Pay (LWP)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="attFormNotes" class="block text-xs font-medium text-slate-700 mb-1">Notes / Reason</label>
+          <input type="text" id="attFormNotes" placeholder="e.g. Doctor appointment, client site visit, etc." class="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-slate-50 focus:ring-brand-500 focus:border-brand-500">
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <button id="cancelAttendanceModalBtn" type="button" class="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">Cancel</button>
+          <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-xs transition-colors">Save Attendance Entry</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- APPLICATION JAVASCRIPT LOGIC -->
+  <script>
+    // ==========================================
+    // DATA STORE & DEFAULTS
+    // ==========================================
+    const STORAGE_KEY = 'staffpulse_db_v2';
+
+    // Default configuration rules
+    const defaultSettings = {
+      defaultShiftStart: '09:00',
+      defaultShiftEnd: '18:00',
+      defaultGraceMinutes: 15,
+      lateThresholdWarning: 3,
+      workDaysPerWeek: 5 // Mon - Fri
+    };
+
+    // Realistic Demo Dataset
+    const defaultStaff = [
+      {
+        id: 'EMP-1001',
+        name: 'Aarav Sharma',
+        department: 'Engineering',
+        role: 'Tech Lead',
+        email: 'aarav.sharma@company.com',
+        phone: '+91 98201 12345',
+        shiftStart: '09:00',
+        shiftEnd: '18:00',
+        graceMinutes: 15,
+        joinedDate: '2024-03-15',
+        status: 'Active'
+      },
+      {
+        id: 'EMP-1002',
+        name: 'Priya Deshmukh',
+        department: 'Operations',
+        role: 'Operations Manager',
+        email: 'priya.deshmukh@company.com',
+        phone: '+91 98202 23456',
+        shiftStart: '09:30',
+        shiftEnd: '18:30',
+        graceMinutes: 15,
+        joinedDate: '2024-06-01',
+        status: 'Active'
+      },
+      {
+        id: 'EMP-1003',
+        name: 'Rohan Mehta',
+        department: 'Engineering',
+        role: 'Senior Software Engineer',
+        email: 'rohan.mehta@company.com',
+        phone: '+91 98203 34567',
+        shiftStart: '09:00',
+        shiftEnd: '18:00',
+        graceMinutes: 15,
+        joinedDate: '2024-08-10',
+        status: 'Active'
+      },
+      {
+        id: 'EMP-1004',
+        name: 'Ananya Iyer',
+        department: 'HR & Admin',
+        role: 'HR Specialist',
+        email: 'ananya.iyer@company.com',
+        phone: '+91 98204 45678',
+        shiftStart: '09:00',
+        shiftEnd: '18:00',
+        graceMinutes: 15,
+        joinedDate: '2025-01-10',
+        status: 'Active'
+      },
+      {
+        id: 'EMP-1005',
+        name: 'Vikram Joshi',
+        department: 'Sales & Marketing',
+        role: 'Sales Director',
+        email: 'vikram.joshi@company.com',
+        phone: '+91 98205 56789',
+        shiftStart: '10:00',
+        shiftEnd: '19:00',
+        graceMinutes: 15,
+        joinedDate: '2024-11-01',
+        status: 'Active'
+      },
+      {
+        id: 'EMP-1006',
+        name: 'Neha Patel',
+        department: 'Finance',
+        role: 'Senior Accountant',
+        email: 'neha.patel@company.com',
+        phone: '+91 98206 67890',
+        shiftStart: '09:00',
+        shiftEnd: '18:00',
+        graceMinutes: 15,
+        joinedDate: '2025-02-15',
+        status: 'Active'
+      },
+      {
+        id: 'EMP-1007',
+        name: 'Kabir Verma',
+        department: 'Engineering',
+        role: 'DevOps Engineer',
+        email: 'kabir.verma@company.com',
+        phone: '+91 98207 78901',
+        shiftStart: '09:00',
+        shiftEnd: '18:00',
+        graceMinutes: 15,
+        joinedDate: '2025-04-01',
+        status: 'Active'
+      },
+      {
+        id: 'EMP-1008',
+        name: 'Sneha Kulkarni',
+        department: 'Operations',
+        role: 'Logistics Coordinator',
+        email: 'sneha.kulkarni@company.com',
+        phone: '+91 98208 89012',
+        shiftStart: '09:00',
+        shiftEnd: '18:00',
+        graceMinutes: 15,
+        joinedDate: '2025-05-20',
+        status: 'Active'
+      }
+    ];
+
+    // Helper: generate seeded attendance logs for October 2026 (Oct 1 to Oct 19, 2026) and September 2026
+    function generateDemoAttendance(staffList) {
+      const logs = [];
+      let logIdCounter = 1;
+
+      // Helper for minutes conversion
+      function toMins(tStr) {
+        if (!tStr) return 0;
+        const [h, m] = tStr.split(':').map(Number);
+        return h * 60 + m;
+      }
+      function fromMins(mins) {
+        const h = Math.floor(mins / 60).toString().padStart(2, '0');
+        const m = (mins % 60).toString().padStart(2, '0');
+        return `${h}:${m}`;
+      }
+
+      // Generate for a given month range
+      function buildMonthLogs(year, monthIndex, maxDay) {
+        // monthIndex: 0-based (8=Sep, 9=Oct)
+        for (let day = 1; day <= maxDay; day++) {
+          const dt = new Date(year, monthIndex, day);
+          const dayOfWeek = dt.getDay(); // 0 = Sun, 6 = Sat
+          if (dayOfWeek === 0 || dayOfWeek === 6) continue; // Skip weekends
+
+          const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+          staffList.forEach((emp, empIdx) => {
+            const shiftStartMins = toMins(emp.shiftStart);
+            const graceMins = emp.graceMinutes || 15;
+            const thresholdMins = shiftStartMins + graceMins;
+            const shiftEndMins = toMins(emp.shiftEnd);
+
+            // Pseudo-random deterministic behavior based on empIdx and day
+            const seed = (day * 13 + empIdx * 7) % 100;
+
+            let status = 'Present';
+            let inTime = '';
+            let outTime = '';
+            let isLate = false;
+            let lateMinutes = 0;
+            let leaveType = '';
+            let notes = '';
+
+            if (seed < 72) {
+              // Present on time (arrive 15 mins before to grace limit)
+              const variation = ((seed * 3) % 20) - 10; // -10 to +9 mins
+              const arrivalMins = shiftStartMins + variation;
+              inTime = fromMins(arrivalMins);
+              outTime = fromMins(shiftEndMins + ((seed % 5) * 10)); // maybe some overtime
+              if (arrivalMins > thresholdMins) {
+                isLate = true;
+                lateMinutes = arrivalMins - shiftStartMins;
+                status = 'Late';
+              }
+            } else if (seed < 86) {
+              // Late Mark (arrive 16 to 45 mins late)
+              const delay = 16 + (seed % 30);
+              const arrivalMins = shiftStartMins + delay;
+              inTime = fromMins(arrivalMins);
+              outTime = fromMins(shiftEndMins + 15);
+              isLate = true;
+              lateMinutes = delay;
+              status = 'Late';
+              notes = 'Traffic delay';
+            } else if (seed < 94) {
+              // Leave
+              status = 'Leave';
+              if (seed % 2 === 0) {
+                leaveType = 'Casual Leave (CL)';
+                notes = 'Personal urgent work';
+              } else {
+                leaveType = 'Sick Leave (SL)';
+                notes = 'Viral fever & medical rest';
+              }
+            } else {
+              // Absent
+              status = 'Absent';
+              notes = 'Unplanned absence / no notice';
+            }
+
+            // Calculate duration in hours
+            let workHours = 0;
+            if (inTime && outTime) {
+              const diffMins = Math.max(0, toMins(outTime) - toMins(inTime));
+              workHours = parseFloat((diffMins / 60).toFixed(2));
+            }
+
+            logs.push({
+              id: 'LOG-' + (logIdCounter++),
+              staffId: emp.id,
+              date: dateStr,
+              status: isLate ? 'Late' : status,
+              inTime: inTime,
+              outTime: outTime,
+              isLate: isLate,
+              lateMinutes: lateMinutes,
+              workHours: workHours,
+              leaveType: leaveType,
+              notes: notes
+            });
+          });
+        }
+      }
+
+      // September 2026 (full 30 days)
+      buildMonthLogs(2026, 8, 30);
+      // October 2026 (up to day 19, which is current date)
+      buildMonthLogs(2026, 9, 19);
+
+      return logs;
+    }
+
+    // App State
+    let appData = {
+      settings: { ...defaultSettings },
+      staff: [...defaultStaff],
+      attendance: []
+    };
+
+    // Load from LocalStorage
+    function loadAppData() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && Array.isArray(parsed.staff) && Array.isArray(parsed.attendance)) {
+            appData = parsed;
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Could not read from localStorage, using demo data', e);
+      }
+      // Initialize with demo data
+      appData = {
+        settings: { ...defaultSettings },
+        staff: JSON.parse(JSON.stringify(defaultStaff)),
+        attendance: generateDemoAttendance(defaultStaff)
+      };
+      saveAppData();
+    }
+
+    // Save to LocalStorage
+    function saveAppData() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      } catch (e) {
+        console.error('Failed to save to localStorage', e);
+        showToast('Storage quota exceeded or disabled', 'warning');
+      }
+    }
+
+    // ==========================================
+    // TOAST NOTIFICATIONS
+    // ==========================================
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = 'pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-xs font-semibold transform transition-all duration-300 translate-y-2 opacity-0';
+
+      let bgClasses = 'bg-white text-slate-800 border-slate-200';
+      let icon = '<svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+
+      if (type === 'success') {
+        bgClasses = 'bg-emerald-50 text-emerald-900 border-emerald-200';
+        icon = '<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+      } else if (type === 'error') {
+        bgClasses = 'bg-rose-50 text-rose-900 border-rose-200';
+        icon = '<svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+      } else if (type === 'warning') {
+        bgClasses = 'bg-amber-50 text-amber-900 border-amber-200';
+        icon = '<svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
+      } else if (type === 'info') {
+        bgClasses = 'bg-brand-50 text-brand-900 border-brand-200';
+        icon = '<svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+      }
+
+      toast.className += ` ${bgClasses}`;
+      toast.innerHTML = `
+        <div class="shrink-0">${icon}</div>
+        <div class="flex-1">${message}</div>
+        <button class="shrink-0 text-slate-400 hover:text-slate-600 ml-2" onclick="this.parentElement.remove()">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      `;
+
+      container.appendChild(toast);
+
+      // Animate in
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        if (toast.parentElement) {
+          toast.classList.add('opacity-0', 'translate-x-4');
+          setTimeout(() => toast.remove(), 300);
+        }
+      }, 4000);
+    }
+
+    // ==========================================
+    // CONFIRM MODAL (NO ALERT/CONFIRM)
+    // ==========================================
+    let confirmCallback = null;
+    function openConfirmModal(title, message, onConfirm, actionText = 'Confirm', isDestructive = true) {
+      const modal = document.getElementById('confirmModal');
+      document.getElementById('confirmModalTitle').textContent = title;
+      document.getElementById('confirmModalMessage').textContent = message;
+
+      const actBtn = document.getElementById('confirmModalActionBtn');
+      actBtn.textContent = actionText;
+      if (isDestructive) {
+        actBtn.className = 'px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs transition-colors';
+      } else {
+        actBtn.className = 'px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-xs transition-colors';
+      }
+
+      confirmCallback = onConfirm;
+      modal.classList.remove('hidden');
+    }
+    function closeConfirmModal() {
+      const modal = document.getElementById('confirmModal');
+      modal.classList.add('hidden');
+      confirmCallback = null;
+    }
+
+    // ==========================================
+    // NAVIGATION & TAB SWITCHING
+    // ==========================================
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.getAttribute('data-tab') === tabId) {
+          btn.className = 'tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap bg-brand-50 text-brand-700 shadow-xs';
+        } else {
+          btn.className = 'tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center gap-2 whitespace-nowrap';
+        }
+      });
+
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        if (pane.id === `tab-${tabId}`) {
+          pane.classList.remove('hidden');
+        } else {
+          pane.classList.add('hidden');
+        }
+      });
+
+      // Tab specific re-renders
+      if (tabId === 'dashboard') {
+        renderDashboard();
+      } else if (tabId === 'staff') {
+        renderStaffDirectory();
+      } else if (tabId === 'attendance') {
+        renderAttendanceLog();
+      } else if (tabId === 'individual-report') {
+        renderIndividualReport();
+      } else if (tabId === 'all-staff-report') {
+        renderAllStaffReport();
+      }
+    }
+
+    // ==========================================
+    // DATE & TIME HELPERS
+    // ==========================================
+    function getTodayDateStr() {
+      // Anchored to system metadata: 2026-10-19
+      return '2026-10-19';
+    }
+
+    function formatTimeDisplay(timeStr) {
+      if (!timeStr) return '--:--';
+      const [h, m] = timeStr.split(':').map(Number);
+      const period = h >= 12 ? 'PM' : 'AM';
+      const displayH = h % 12 === 0 ? 12 : h % 12;
+      return `${displayH}:${String(m).padStart(2, '0')} ${period}`;
+    }
+
+    function timeToMins(tStr) {
+      if (!tStr) return 0;
+      const [h, m] = tStr.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function minsToTime(mins) {
+      const h = Math.floor(mins / 60).toString().padStart(2, '0');
+      const m = (mins % 60).toString().padStart(2, '0');
+      return `${h}:${m}`;
+    }
+
+    function calculateHoursWorked(inTime, outTime) {
+      if (!inTime || !outTime) return { hours: 0, text: '--' };
+      const diffMins = Math.max(0, timeToMins(outTime) - timeToMins(inTime));
+      const hrs = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      return {
+        hours: parseFloat((diffMins / 60).toFixed(2)),
+        text: `${hrs}h ${mins}m`
+      };
+    }
+
+    // Detect Late Mark based on staff schedule and inTime
+    function evaluatePunctuality(staff, inTime) {
+      if (!inTime) return { isLate: false, lateMinutes: 0 };
+      const shiftStart = staff.shiftStart || appData.settings.defaultShiftStart || '09:00';
+      const grace = typeof staff.graceMinutes === 'number' ? staff.graceMinutes : (appData.settings.defaultGraceMinutes || 15);
+
+      const shiftStartMins = timeToMins(shiftStart);
+      const thresholdMins = shiftStartMins + grace;
+      const inMins = timeToMins(inTime);
+
+      if (inMins > thresholdMins) {
+        return {
+          isLate: true,
+          lateMinutes: inMins - shiftStartMins
+        };
+      }
+      return {
+        isLate: false,
+        lateMinutes: 0
+      };
+    }
+
+    // ==========================================
+    // RENDER: DASHBOARD (TODAY)
+    // ==========================================
+    function renderDashboard() {
+      const today = getTodayDateStr();
+      document.getElementById('currentDateDisplay').textContent = 'Monday, 19 October 2026';
+      document.getElementById('todayRosterDate').textContent = '19 Oct 2026';
+
+      // Update Shift info in quick punch card
+      document.getElementById('quickShiftStartDisplay').textContent = formatTimeDisplay(appData.settings.defaultShiftStart);
+      document.getElementById('quickGraceDisplay').textContent = `${appData.settings.defaultGraceMinutes} mins`;
+
+      const activeStaff = appData.staff.filter(s => s.status === 'Active');
+      document.getElementById('kpiTotalStaff').textContent = activeStaff.length;
+      document.getElementById('tabStaffCount').textContent = appData.staff.length;
+
+      // Find today's logs
+      const todayLogs = appData.attendance.filter(a => a.date === today);
+      const todayLogMap = {};
+      todayLogs.forEach(l => {
+        todayLogMap[l.staffId] = l;
+      });
+
+      let presentCount = 0;
+      let lateCount = 0;
+      let leaveCount = 0;
+      let absentCount = 0;
+
+      activeStaff.forEach(s => {
+        const log = todayLogMap[s.id];
+        if (log) {
+          if (log.status === 'Present') {
+            presentCount++;
+            if (log.isLate) lateCount++;
+          } else if (log.status === 'Late') {
+            presentCount++;
+            lateCount++;
+          } else if (log.status === 'Half Day') {
+            presentCount++;
+          } else if (log.status === 'Leave') {
+            leaveCount++;
+          } else if (log.status === 'Absent') {
+            absentCount++;
+          }
+        } else {
+          absentCount++;
+        }
+      });
+
+      document.getElementById('kpiPresentToday').textContent = presentCount;
+      const pct = activeStaff.length > 0 ? Math.round((presentCount / activeStaff.length) * 100) : 0;
+      document.getElementById('kpiPresentPercent').textContent = `${pct}% of active staff`;
+      document.getElementById('kpiLateToday').textContent = lateCount;
+      document.getElementById('kpiLeavesToday').textContent = leaveCount;
+      document.getElementById('kpiAbsentToday').textContent = absentCount;
+
+      // Populate Quick Punch Staff dropdown
+      const quickSelect = document.getElementById('quickPunchStaffSelect');
+      const prevQuickVal = quickSelect.value;
+      quickSelect.innerHTML = '<option value="">-- Choose Staff --</option>';
+      activeStaff.forEach(s => {
+        const log = todayLogMap[s.id];
+        const statusText = log ? `(${log.status} - In: ${log.inTime || 'None'})` : '(Not Checked In)';
+        quickSelect.innerHTML += `<option value="${s.id}">${s.name} - ${s.id} ${statusText}</option>`;
+      });
+      if (prevQuickVal) quickSelect.value = prevQuickVal;
+
+      // Set default punch time to current simulated time
+      if (!document.getElementById('quickPunchTime').value) {
+        document.getElementById('quickPunchTime').value = '09:20';
+      }
+
+      // Populate Today's Roster Table
+      renderTodayRosterTable();
+    }
+
+    function renderTodayRosterTable() {
+      const today = getTodayDateStr();
+      const activeStaff = appData.staff.filter(s => s.status === 'Active');
+      const searchVal = (document.getElementById('todaySearchInput').value || '').toLowerCase();
+
+      const todayLogs = appData.attendance.filter(a => a.date === today);
+      const todayLogMap = {};
+      todayLogs.forEach(l => {
+        todayLogMap[l.staffId] = l;
+      });
+
+      const tbody = document.getElementById('todayRosterTbody');
+      tbody.innerHTML = '';
+
+      let displayed = 0;
+
+      activeStaff.forEach(s => {
+        if (searchVal) {
+          const match = s.name.toLowerCase().includes(searchVal) ||
+                        s.id.toLowerCase().includes(searchVal) ||
+                        s.department.toLowerCase().includes(searchVal);
+          if (!match) return;
+        }
+
+        displayed++;
+        const log = todayLogMap[s.id];
+
+        let statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600">Pending</span>';
+        let lateBadge = '';
+
+        if (log) {
+          if (log.status === 'Present') {
+            statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-100 text-emerald-800">Present</span>';
+          } else if (log.status === 'Late' || log.isLate) {
+            statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-100 text-amber-800">Late Mark</span>';
+            lateBadge = `<span class="ml-1 text-[10px] text-amber-700 font-semibold font-mono">+${log.lateMinutes}m</span>`;
+          } else if (log.status === 'Half Day') {
+            statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-purple-100 text-purple-800">Half Day</span>';
+          } else if (log.status === 'Leave') {
+            statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-blue-100 text-blue-800" title="${log.leaveType || 'Leave'}">Leave (${log.leaveType ? log.leaveType.split(' ')[0] : 'On Leave'})</span>`;
+          } else if (log.status === 'Absent') {
+            statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-rose-100 text-rose-800">Absent</span>';
+          }
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition-colors';
+        tr.innerHTML = `
+          <td class="py-2.5 px-3">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-xs">
+                ${s.name.split(' ').map(n => n[0]).join('')}
+              </div>
+              <div>
+                <p class="font-semibold text-slate-800">${s.name}</p>
+                <p class="text-[10px] text-slate-400">${s.id} &bull; ${s.department}</p>
+              </div>
+            </div>
+          </td>
+          <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">
+            ${s.shiftStart} - ${s.shiftEnd}
+          </td>
+          <td class="py-2.5 px-3 font-mono text-[11px] font-semibold text-slate-800">
+            ${log && log.inTime ? log.inTime : '--:--'}
+          </td>
+          <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">
+            ${log && log.outTime ? log.outTime : '--:--'}
+          </td>
+          <td class="py-2.5 px-3">
+            ${statusBadge} ${lateBadge}
+          </td>
+          <td class="py-2.5 px-3 text-right">
+            <div class="inline-flex items-center gap-1">
+              <button onclick="window.quickPunchStaff('${s.id}', 'in')" title="Clock In" class="p-1 rounded bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-700 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14"/></svg>
+              </button>
+              <button onclick="window.quickPunchStaff('${s.id}', 'out')" title="Clock Out" class="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"/></svg>
+              </button>
+              <button onclick="window.openEditAttendanceModal('${log ? log.id : ''}', '${s.id}', '${today}')" title="Edit Entry" class="p-1 rounded bg-slate-100 hover:bg-brand-100 text-slate-600 hover:text-brand-700 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('todayRosterSummary').textContent = `Showing ${displayed} of ${activeStaff.length} staff`;
+    }
+
+    // ==========================================
+    // RENDER: STAFF DIRECTORY
+    // ==========================================
+    function renderStaffDirectory() {
+      const tbody = document.getElementById('staffDirectoryTbody');
+      tbody.innerHTML = '';
+
+      const searchVal = (document.getElementById('staffSearchInput').value || '').toLowerCase();
+      const deptVal = document.getElementById('staffDeptFilter').value;
+      const statusVal = document.getElementById('staffStatusFilter').value;
+
+      let count = 0;
+
+      appData.staff.forEach(s => {
+        // Filters
+        if (deptVal && s.department !== deptVal) return;
+        if (statusVal && s.status !== statusVal) return;
+        if (searchVal) {
+          const match = s.name.toLowerCase().includes(searchVal) ||
+                        s.id.toLowerCase().includes(searchVal) ||
+                        s.role.toLowerCase().includes(searchVal) ||
+                        (s.email && s.email.toLowerCase().includes(searchVal));
+          if (!match) return;
+        }
+
+        count++;
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition-colors';
+
+        const statusClass = s.status === 'Active'
+          ? 'bg-emerald-100 text-emerald-800'
+          : 'bg-slate-100 text-slate-600';
+
+        tr.innerHTML = `
+          <td class="py-3 px-4">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                ${s.name.split(' ').map(n => n[0]).join('')}
+              </div>
+              <div>
+                <span class="font-bold text-slate-900 block">${s.name}</span>
+                <span class="text-[11px] text-slate-400 block">${s.email || 'No email registered'}</span>
+              </div>
+            </div>
+          </td>
+          <td class="py-3 px-4 font-mono font-semibold text-slate-700">${s.id}</td>
+          <td class="py-3 px-4">
+            <span class="font-semibold text-slate-800 block">${s.department}</span>
+            <span class="text-[11px] text-slate-500 block">${s.role}</span>
+          </td>
+          <td class="py-3 px-4 font-mono text-[11px] text-slate-700">
+            ${s.shiftStart} &ndash; ${s.shiftEnd}
+          </td>
+          <td class="py-3 px-4 text-slate-600">
+            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold font-mono text-[11px]">${s.graceMinutes} mins</span>
+          </td>
+          <td class="py-3 px-4 text-slate-600">${s.joinedDate || '--'}</td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusClass}">${s.status}</span>
+          </td>
+          <td class="py-3 px-4 text-right">
+            <div class="inline-flex items-center gap-2">
+              <button onclick="window.openIndividualReportFor('${s.id}')" title="View Monthly Report" class="p-1.5 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-700 transition-colors text-xs font-semibold flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Report
+              </button>
+              <button onclick="window.editStaffProfile('${s.id}')" title="Edit Staff" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+              </button>
+              <button onclick="window.deleteStaffProfile('${s.id}')" title="Delete Staff" class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('staffFilteredCount').textContent = `Showing ${count} of ${appData.staff.length} staff members`;
+      document.getElementById('tabStaffCount').textContent = appData.staff.length;
+    }
+
+    // ==========================================
+    // RENDER: ATTENDANCE & LEAVES LOG
+    // ==========================================
+    function renderAttendanceLog() {
+      // Populate staff dropdown in filter if empty
+      const staffFilterSelect = document.getElementById('attStaffFilter');
+      if (staffFilterSelect.options.length <= 1) {
+        staffFilterSelect.innerHTML = '<option value="">All Staff Members</option>';
+        appData.staff.forEach(s => {
+          staffFilterSelect.innerHTML += `<option value="${s.id}">${s.name} (${s.id})</option>`;
+        });
+      }
+
+      const dateFilter = document.getElementById('attDateFilter').value;
+      const staffFilter = document.getElementById('attStaffFilter').value;
+      const statusFilter = document.getElementById('attStatusFilter').value;
+
+      const tbody = document.getElementById('attendanceLogTbody');
+      tbody.innerHTML = '';
+
+      // Sort logs descending by date
+      const sortedLogs = [...appData.attendance].sort((a, b) => b.date.localeCompare(a.date));
+
+      let count = 0;
+
+      sortedLogs.forEach(log => {
+        if (dateFilter && log.date !== dateFilter) return;
+        if (staffFilter && log.staffId !== staffFilter) return;
+        if (statusFilter) {
+          if (statusFilter === 'Late' && !log.isLate && log.status !== 'Late') return;
+          if (statusFilter !== 'Late' && log.status !== statusFilter) return;
+        }
+
+        const staff = appData.staff.find(s => s.id === log.staffId);
+        count++;
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition-colors';
+
+        let statusBadge = '';
+        if (log.status === 'Present') {
+          statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-100 text-emerald-800">Present (On-Time)</span>';
+        } else if (log.status === 'Late' || log.isLate) {
+          statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-800">Late Mark (+${log.lateMinutes}m)</span>`;
+        } else if (log.status === 'Half Day') {
+          statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-purple-100 text-purple-800">Half Day</span>';
+        } else if (log.status === 'Leave') {
+          statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-blue-100 text-blue-800">Leave</span>`;
+        } else if (log.status === 'Absent') {
+          statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-rose-100 text-rose-800">Absent</span>';
+        }
+
+        const staffName = staff ? staff.name : log.staffId;
+        const staffDept = staff ? staff.department : 'General';
+
+        tr.innerHTML = `
+          <td class="py-2.5 px-4 font-mono text-[11px] font-medium text-slate-800">${log.date}</td>
+          <td class="py-2.5 px-4">
+            <span class="font-bold text-slate-800 block">${staffName}</span>
+            <span class="text-[10px] text-slate-400 block">${log.staffId} &bull; ${staffDept}</span>
+          </td>
+          <td class="py-2.5 px-4 font-mono font-semibold text-slate-800">${log.inTime ? log.inTime : '--:--'}</td>
+          <td class="py-2.5 px-4 font-mono text-slate-600">${log.outTime ? log.outTime : '--:--'}</td>
+          <td class="py-2.5 px-4 font-mono text-slate-700">${log.workHours ? `${log.workHours}h` : '--'}</td>
+          <td class="py-2.5 px-4">${statusBadge}</td>
+          <td class="py-2.5 px-4 text-slate-600">
+            ${log.leaveType ? `<span class="font-semibold text-blue-700 block">${log.leaveType}</span>` : ''}
+            <span>${log.notes || '--'}</span>
+          </td>
+          <td class="py-2.5 px-4 text-right">
+            <div class="inline-flex items-center gap-1.5">
+              <button onclick="window.openEditAttendanceModal('${log.id}', '${log.staffId}', '${log.date}')" title="Edit" class="p-1 rounded hover:bg-slate-200 text-slate-600 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+              </button>
+              <button onclick="window.deleteAttendanceRecord('${log.id}')" title="Delete" class="p-1 rounded hover:bg-rose-100 text-rose-600 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('attendanceLogCount').textContent = `Showing ${count} of ${appData.attendance.length} records`;
+    }
+
+    // ==========================================
+    // RENDER: INDIVIDUAL STAFF MONTHLY REPORT
+    // ==========================================
+    function renderIndividualReport() {
+      // Ensure month selector has value (default: 2026-10)
+      const monthInput = document.getElementById('indivReportMonthSelect');
+      if (!monthInput.value) {
+        monthInput.value = '2026-10';
+      }
+
+      // Populate Staff Dropdown
+      const staffSelect = document.getElementById('indivReportStaffSelect');
+      const currentSelected = staffSelect.value || (appData.staff.length > 0 ? appData.staff[0].id : '');
+      staffSelect.innerHTML = '';
+      appData.staff.forEach(s => {
+        staffSelect.innerHTML += `<option value="${s.id}">${s.name} (${s.id} - ${s.department})</option>`;
+      });
+      staffSelect.value = currentSelected;
+
+      const staff = appData.staff.find(s => s.id === staffSelect.value);
+      if (!staff) return;
+
+      const monthVal = monthInput.value; // e.g. "2026-10"
+      const [yearStr, monthNumStr] = monthVal.split('-');
+      const year = parseInt(yearStr, 10);
+      const monthIndex = parseInt(monthNumStr, 10) - 1;
+
+      const monthName = new Date(year, monthIndex, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+      document.getElementById('indivReportPeriodTitle').textContent = monthName;
+
+      // Update staff profile card
+      document.getElementById('indivStaffName').textContent = staff.name;
+      document.getElementById('indivStaffId').textContent = staff.id;
+      document.getElementById('indivStaffDept').textContent = staff.department;
+      document.getElementById('indivStaffRole').textContent = staff.role;
+      document.getElementById('indivStaffShift').textContent = `${staff.shiftStart} - ${staff.shiftEnd}`;
+      document.getElementById('indivStaffGrace').textContent = `${staff.graceMinutes || 15} min`;
+      document.getElementById('indivStaffJoined').textContent = staff.joinedDate || '--';
+      document.getElementById('indivStaffAvatar').textContent = staff.name.split(' ').map(n => n[0]).join('');
+      document.getElementById('indivPrintGeneratedDate').textContent = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      const statusBadge = document.getElementById('indivStaffStatusBadge');
+      statusBadge.textContent = staff.status;
+      statusBadge.className = staff.status === 'Active'
+        ? 'px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800'
+        : 'px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-100 text-slate-700';
+
+      // Days calculation
+      const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+      let totalWorkdays = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dayOfWeek = new Date(year, monthIndex, d).getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) totalWorkdays++;
+      }
+      document.getElementById('indivReportPeriodDays').textContent = `${daysInMonth} Calendar Days • ${totalWorkdays} Standard Workdays`;
+
+      // Filter attendance logs for this staff and this month
+      const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+      const staffLogs = appData.attendance.filter(a => a.staffId === staff.id && a.date.startsWith(monthPrefix));
+      const logByDate = {};
+      staffLogs.forEach(l => {
+        logByDate[l.date] = l;
+      });
+
+      // Compute statistics
+      let presentCount = 0;
+      let onTimeCount = 0;
+      let lateCount = 0;
+      let totalLateMins = 0;
+      let leaveCount = 0;
+      let absenceCount = 0;
+      let totalHours = 0;
+
+      // Also account for unlogged past workdays in the month as absent if past
+      // Current simulated date is 2026-10-19
+      const todayStr = getTodayDateStr();
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dtStr = `${monthPrefix}-${String(d).padStart(2, '0')}`;
+        const dt = new Date(year, monthIndex, d);
+        const dayOfWeek = dt.getDay();
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
+        if (isWeekend) continue;
+
+        const log = logByDate[dtStr];
+        if (log) {
+          if (log.status === 'Present') {
+            presentCount++;
+            if (log.isLate) {
+              lateCount++;
+              totalLateMins += (log.lateMinutes || 0);
+            } else {
+              onTimeCount++;
+            }
+          } else if (log.status === 'Late') {
+            presentCount++;
+            lateCount++;
+            totalLateMins += (log.lateMinutes || 0);
+          } else if (log.status === 'Half Day') {
+            presentCount += 0.5;
+            if (log.isLate) {
+              lateCount++;
+              totalLateMins += (log.lateMinutes || 0);
+            }
+          } else if (log.status === 'Leave') {
+            leaveCount++;
+          } else if (log.status === 'Absent') {
+            absenceCount++;
+          }
+
+          if (log.workHours) {
+            totalHours += log.workHours;
+          }
+        } else if (dtStr <= todayStr) {
+          // Passed workday with no log recorded is an unexcused absence
+          absenceCount++;
+        }
+      }
+
+      // Update KPI scorecard
+      document.getElementById('indivMetricPresent').textContent = presentCount;
+      document.getElementById('indivMetricPresentSub').textContent = `${onTimeCount} On-Time Days`;
+
+      document.getElementById('indivMetricLate').textContent = lateCount;
+      document.getElementById('indivMetricLateMins').textContent = `${totalLateMins} mins total delay`;
+
+      document.getElementById('indivMetricLeaves').textContent = leaveCount;
+      document.getElementById('indivMetricAbsences').textContent = absenceCount;
+
+      const hrsInt = Math.floor(totalHours);
+      const minsInt = Math.round((totalHours - hrsInt) * 60);
+      document.getElementById('indivMetricHours').textContent = `${hrsInt}h ${minsInt}m`;
+      const avgHrs = presentCount > 0 ? (totalHours / presentCount).toFixed(1) : '0.0';
+      document.getElementById('indivMetricAvgHours').textContent = `Avg ${avgHrs}h / day`;
+
+      // Punctuality: On-Time / Present * 100
+      const punctualityPct = presentCount > 0 ? Math.round((onTimeCount / presentCount) * 100) : 0;
+      document.getElementById('indivMetricPunctuality').textContent = `${punctualityPct}%`;
+
+      // Attendance: Present / Total Workdays (evaluated till today or month)
+      const evaluatedWorkdays = Math.min(totalWorkdays, presentCount + leaveCount + absenceCount) || totalWorkdays;
+      const attRatePct = evaluatedWorkdays > 0 ? Math.round((presentCount / evaluatedWorkdays) * 100) : 0;
+      document.getElementById('indivMetricAttRate').textContent = `Attendance: ${attRatePct}%`;
+
+      // Render Visual Monthly Calendar Grid
+      renderIndividualCalendar(year, monthIndex, logByDate);
+
+      // Render Itemized Day-by-Day Table
+      renderIndividualDayByDayTable(year, monthIndex, logByDate, staff);
+    }
+
+    function renderIndividualCalendar(year, monthIndex, logByDate) {
+      const container = document.getElementById('indivCalendarGrid');
+      container.innerHTML = '';
+
+      const firstDayOfMonth = new Date(year, monthIndex, 1).getDay(); // 0 = Sun
+      const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+      const todayStr = getTodayDateStr();
+
+      // Blank prefix tiles for Sunday alignment
+      for (let i = 0; i < firstDayOfMonth; i++) {
+        const blank = document.createElement('div');
+        blank.className = 'h-16 rounded-xl bg-slate-50/50 border border-transparent';
+        container.appendChild(blank);
+      }
+
+      // Day tiles
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dt = new Date(year, monthIndex, day);
+        const dayOfWeek = dt.getDay();
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+        const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const isFuture = dateStr > todayStr;
+
+        const tile = document.createElement('div');
+        tile.className = 'h-18 p-1.5 rounded-xl border flex flex-col justify-between text-left transition-all';
+
+        let badge = '';
+        let bgStyle = 'bg-white border-slate-200';
+
+        if (isWeekend) {
+          bgStyle = 'bg-slate-100/70 border-slate-200 text-slate-400';
+          badge = '<span class="text-[9px] font-medium text-slate-400">Off</span>';
+        } else {
+          const log = logByDate[dateStr];
+          if (log) {
+            if (log.status === 'Present') {
+              bgStyle = 'bg-emerald-50/60 border-emerald-200 text-emerald-900';
+              badge = `<span class="text-[9px] font-bold px-1 py-0.5 rounded bg-emerald-100 text-emerald-800">Present</span>`;
+            } else if (log.status === 'Late' || log.isLate) {
+              bgStyle = 'bg-amber-50/80 border-amber-300 text-amber-900 ring-1 ring-amber-400/30';
+              badge = `<span class="text-[9px] font-bold px-1 py-0.5 rounded bg-amber-100 text-amber-800">+${log.lateMinutes}m Late</span>`;
+            } else if (log.status === 'Half Day') {
+              bgStyle = 'bg-purple-50/70 border-purple-200 text-purple-900';
+              badge = `<span class="text-[9px] font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-800">Half Day</span>`;
+            } else if (log.status === 'Leave') {
+              bgStyle = 'bg-blue-50/70 border-blue-200 text-blue-900';
+              badge = `<span class="text-[9px] font-bold px-1 py-0.5 rounded bg-blue-100 text-blue-800">Leave</span>`;
+            } else if (log.status === 'Absent') {
+              bgStyle = 'bg-rose-50/70 border-rose-200 text-rose-900';
+              badge = `<span class="text-[9px] font-bold px-1 py-0.5 rounded bg-rose-100 text-rose-800">Absent</span>`;
+            }
+          } else if (isFuture) {
+            bgStyle = 'bg-white border-slate-100 text-slate-400';
+            badge = '<span class="text-[9px] text-slate-300">--</span>';
+          } else {
+            bgStyle = 'bg-rose-50/40 border-rose-200 text-rose-700';
+            badge = '<span class="text-[9px] font-bold px-1 py-0.5 rounded bg-rose-100 text-rose-800">Absent</span>';
+          }
+        }
+
+        tile.className += ` ${bgStyle}`;
+        tile.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold ${isWeekend ? 'text-slate-400' : 'text-slate-800'}">${day}</span>
+            ${dateStr === todayStr ? '<span class="w-1.5 h-1.5 rounded-full bg-brand-600" title="Today"></span>' : ''}
+          </div>
+          <div class="mt-1">${badge}</div>
+        `;
+        container.appendChild(tile);
+      }
+    }
+
+    function renderIndividualDayByDayTable(year, monthIndex, logByDate, staff) {
+      const tbody = document.getElementById('indivDailyBreakdownTbody');
+      tbody.innerHTML = '';
+
+      const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+      const todayStr = getTodayDateStr();
+      const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dt = new Date(year, monthIndex, day);
+        const dayOfWeek = dt.getDay();
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+        const dateStr = `${monthPrefix}-${String(day).padStart(2, '0')}`;
+        const isFuture = dateStr > todayStr;
+
+        if (isFuture) continue; // Only show up to current day
+
+        const log = logByDate[dateStr];
+        const tr = document.createElement('tr');
+        tr.className = isWeekend ? 'bg-slate-50/50 text-slate-400' : 'hover:bg-slate-50 transition-colors';
+
+        let statusCell = '';
+        let inTimeCell = '--:--';
+        let outTimeCell = '--:--';
+        let durationCell = '--';
+        let lateMarkCell = '--';
+        let remarksCell = '';
+
+        if (isWeekend) {
+          statusCell = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500">Weekend</span>';
+          remarksCell = 'Non-working day';
+        } else if (log) {
+          if (log.status === 'Present') {
+            statusCell = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Present</span>';
+          } else if (log.status === 'Late' || log.isLate) {
+            statusCell = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Late Mark</span>';
+            lateMarkCell = `<span class="font-bold text-amber-700 font-mono">+${log.lateMinutes} mins late</span>`;
+          } else if (log.status === 'Half Day') {
+            statusCell = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">Half Day</span>';
+          } else if (log.status === 'Leave') {
+            statusCell = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">Leave</span>';
+          } else if (log.status === 'Absent') {
+            statusCell = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">Absent</span>';
+          }
+
+          inTimeCell = log.inTime ? log.inTime : '--:--';
+          outTimeCell = log.outTime ? log.outTime : '--:--';
+          durationCell = log.workHours ? `${log.workHours}h` : '--';
+          remarksCell = (log.leaveType ? `<strong>${log.leaveType}</strong> ` : '') + (log.notes || '');
+        } else {
+          statusCell = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">Absent</span>';
+          remarksCell = 'Unlogged workday / unexcused absence';
+        }
+
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-mono font-medium text-slate-800">${dateStr}</td>
+          <td class="py-2.5 px-3 font-semibold text-slate-600">${dayNames[dayOfWeek]}</td>
+          <td class="py-2.5 px-3">${statusCell}</td>
+          <td class="py-2.5 px-3 font-mono text-[11px] text-slate-800">${inTimeCell}</td>
+          <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">${outTimeCell}</td>
+          <td class="py-2.5 px-3 font-mono text-[11px] font-semibold text-slate-700">${durationCell}</td>
+          <td class="py-2.5 px-3 text-[11px]">${lateMarkCell}</td>
+          <td class="py-2.5 px-3 text-[11px] text-slate-600">${remarksCell || '--'}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    // ==========================================
+    // RENDER: ALL STAFF MONTHLY REPORT
+    // ==========================================
+    let deptChartInstance = null;
+    let punctualityChartInstance = null;
+
+    function renderAllStaffReport() {
+      const monthInput = document.getElementById('allReportMonthSelect');
+      if (!monthInput.value) {
+        monthInput.value = '2026-10';
+      }
+
+      const monthVal = monthInput.value; // "2026-10"
+      const deptFilter = document.getElementById('allReportDeptSelect').value;
+      const searchVal = (document.getElementById('allReportSearchInput').value || '').toLowerCase();
+
+      const [yearStr, monthNumStr] = monthVal.split('-');
+      const year = parseInt(yearStr, 10);
+      const monthIndex = parseInt(monthNumStr, 10) - 1;
+
+      const monthName = new Date(year, monthIndex, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+      document.getElementById('allPrintPeriodTitle').textContent = monthName;
+      document.getElementById('allPrintGeneratedDate').textContent = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      document.getElementById('allReportTableMonthBadge').textContent = monthName;
+
+      // Filter staff list
+      let filteredStaff = appData.staff.filter(s => s.status === 'Active');
+      if (deptFilter) {
+        filteredStaff = filteredStaff.filter(s => s.department === deptFilter);
+      }
+      if (searchVal) {
+        filteredStaff = filteredStaff.filter(s => 
+          s.name.toLowerCase().includes(searchVal) ||
+          s.id.toLowerCase().includes(searchVal) ||
+          s.department.toLowerCase().includes(searchVal)
+        );
+      }
+
+      const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+      const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+      let totalWorkdaysInMonth = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dw = new Date(year, monthIndex, d).getDay();
+        if (dw !== 0 && dw !== 6) totalWorkdaysInMonth++;
+      }
+
+      const todayStr = getTodayDateStr();
+
+      // Aggregate metrics per staff
+      let orgTotalPresent = 0;
+      let orgTotalLate = 0;
+      let orgTotalLeaves = 0;
+      let orgTotalAbsences = 0;
+      let orgTotalHours = 0;
+      let staffWithLateCount = 0;
+
+      const staffMetrics = [];
+
+      filteredStaff.forEach(s => {
+        const sLogs = appData.attendance.filter(a => a.staffId === s.id && a.date.startsWith(monthPrefix));
+        const logMap = {};
+        sLogs.forEach(l => { logMap[l.date] = l; });
+
+        let present = 0;
+        let onTime = 0;
+        let late = 0;
+        let lateMins = 0;
+        let leaves = 0;
+        let absences = 0;
+        let hours = 0;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${monthPrefix}-${String(d).padStart(2, '0')}`;
+          const dw = new Date(year, monthIndex, d).getDay();
+          if (dw === 0 || dw === 6) continue;
+
+          const log = logMap[dateStr];
+          if (log) {
+            if (log.status === 'Present') {
+              present++;
+              if (log.isLate) {
+                late++;
+                lateMins += (log.lateMinutes || 0);
+              } else {
+                onTime++;
+              }
+            } else if (log.status === 'Late') {
+              present++;
+              late++;
+              lateMins += (log.lateMinutes || 0);
+            } else if (log.status === 'Half Day') {
+              present += 0.5;
+              if (log.isLate) {
+                late++;
+                lateMins += (log.lateMinutes || 0);
+              }
+            } else if (log.status === 'Leave') {
+              leaves++;
+            } else if (log.status === 'Absent') {
+              absences++;
+            }
+
+            if (log.workHours) hours += log.workHours;
+          } else if (dateStr <= todayStr) {
+            absences++;
+          }
+        }
+
+        if (late > 0) staffWithLateCount++;
+
+        orgTotalPresent += present;
+        orgTotalLate += late;
+        orgTotalLeaves += leaves;
+        orgTotalAbsences += absences;
+        orgTotalHours += hours;
+
+        const evaluatedWorkdays = Math.min(totalWorkdaysInMonth, present + leaves + absences) || totalWorkdaysInMonth;
+        const attRate = evaluatedWorkdays > 0 ? Math.round((present / evaluatedWorkdays) * 100) : 0;
+        const punctualityRate = present > 0 ? Math.round((onTime / present) * 100) : 0;
+
+        staffMetrics.push({
+          staff: s,
+          workdays: totalWorkdaysInMonth,
+          present,
+          onTime,
+          late,
+          lateMins,
+          leaves,
+          absences,
+          hours: parseFloat(hours.toFixed(1)),
+          attRate,
+          punctualityRate
+        });
+      });
+
+      // Update executive KPI cards
+      document.getElementById('allKpiStaffCount').textContent = filteredStaff.length;
+
+      const totalPossibleWorkdayStaff = filteredStaff.length * totalWorkdaysInMonth;
+      const orgAvgAtt = totalPossibleWorkdayStaff > 0 ? Math.round((orgTotalPresent / (filteredStaff.length * 15)) * 100) : 0;
+      // Realistic clamp to avoid division artifact
+      const overallAttRate = staffMetrics.length > 0
+        ? Math.round(staffMetrics.reduce((acc, m) => acc + m.attRate, 0) / staffMetrics.length)
+        : 0;
+
+      document.getElementById('allKpiAvgAttendance').textContent = `${overallAttRate}%`;
+      document.getElementById('allKpiTotalLate').textContent = orgTotalLate;
+      document.getElementById('allKpiLateStaffCount').textContent = `Incurred by ${staffWithLateCount} staff`;
+      document.getElementById('allKpiTotalLeaves').textContent = orgTotalLeaves;
+      document.getElementById('allKpiTotalAbsences').textContent = orgTotalAbsences;
+      document.getElementById('allKpiTotalHours').textContent = `${Math.round(orgTotalHours)}h`;
+
+      const avgHoursPerStaff = filteredStaff.length > 0 ? Math.round(orgTotalHours / filteredStaff.length) : 0;
+      document.getElementById('allKpiAvgHoursPerStaff').textContent = `Avg ${avgHoursPerStaff}h / staff`;
+
+      // Render Master Table
+      const tbody = document.getElementById('allStaffReportTbody');
+      tbody.innerHTML = '';
+
+      staffMetrics.forEach(m => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition-colors';
+
+        // Punctuality badge color
+        let punctBadge = '';
+        if (m.punctualityRate >= 90) {
+          punctBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">${m.punctualityRate}% (Excellent)</span>`;
+        } else if (m.punctualityRate >= 75) {
+          punctBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">${m.punctualityRate}% (Moderate)</span>`;
+        } else {
+          punctBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">${m.punctualityRate}% (Needs Review)</span>`;
+        }
+
+        // Attendance badge color
+        let attBadge = '';
+        if (m.attRate >= 90) {
+          attBadge = `<span class="font-bold text-emerald-700">${m.attRate}%</span>`;
+        } else if (m.attRate >= 80) {
+          attBadge = `<span class="font-bold text-amber-700">${m.attRate}%</span>`;
+        } else {
+          attBadge = `<span class="font-bold text-rose-700">${m.attRate}%</span>`;
+        }
+
+        tr.innerHTML = `
+          <td class="py-3 px-3 font-mono font-semibold text-slate-700">${m.staff.id}</td>
+          <td class="py-3 px-3">
+            <span class="font-bold text-slate-900 block">${m.staff.name}</span>
+            <span class="text-[10px] text-slate-400 block">${m.staff.role}</span>
+          </td>
+          <td class="py-3 px-3 text-slate-700 font-medium">${m.staff.department}</td>
+          <td class="py-3 px-3 text-center font-mono text-slate-600">${m.workdays}</td>
+          <td class="py-3 px-3 text-center font-mono font-bold text-emerald-700">${m.present}</td>
+          <td class="py-3 px-3 text-center font-mono font-bold text-amber-700">
+            ${m.late > 0 ? `<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">${m.late} (${m.lateMins}m)</span>` : '0'}
+          </td>
+          <td class="py-3 px-3 text-center font-mono font-bold text-blue-700">${m.leaves}</td>
+          <td class="py-3 px-3 text-center font-mono font-bold text-rose-700">${m.absences}</td>
+          <td class="py-3 px-3 text-right font-mono font-bold text-slate-800">${m.hours}h</td>
+          <td class="py-3 px-3 text-center">${attBadge}</td>
+          <td class="py-3 px-3 text-center">${punctBadge}</td>
+          <td class="py-3 px-3 text-center no-print">
+            <button onclick="window.openIndividualReportFor('${m.staff.id}')" class="px-2 py-1 text-[11px] font-semibold text-brand-700 hover:text-brand-900 bg-brand-50 hover:bg-brand-100 rounded transition-colors">
+              View
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('allReportTableRowCount').textContent = `Showing ${staffMetrics.length} staff records`;
+
+      // Render Charts with Chart.js
+      renderAllStaffCharts(staffMetrics);
+    }
+
+    function renderAllStaffCharts(staffMetrics) {
+      // 1. Department Breakdown Chart
+      const deptData = {};
+      staffMetrics.forEach(m => {
+        const d = m.staff.department;
+        if (!deptData[d]) {
+          deptData[d] = { present: 0, late: 0, leaves: 0, absences: 0, count: 0 };
+        }
+        deptData[d].present += m.present;
+        deptData[d].late += m.late;
+        deptData[d].leaves += m.leaves;
+        deptData[d].absences += m.absences;
+        deptData[d].count++;
+      });
+
+      const depts = Object.keys(deptData);
+      const presentVals = depts.map(d => deptData[d].present);
+      const lateVals = depts.map(d => deptData[d].late);
+      const leaveVals = depts.map(d => deptData[d].leaves);
+
+      const ctxDept = document.getElementById('deptAttendanceChart');
+      if (ctxDept) {
+        if (deptChartInstance) deptChartInstance.destroy();
+        deptChartInstance = new Chart(ctxDept, {
+          type: 'bar',
+          data: {
+            labels: depts,
+            datasets: [
+              {
+                label: 'Present Days',
+                data: presentVals,
+                backgroundColor: '#10b981',
+                borderRadius: 4
+              },
+              {
+                label: 'Late Marks',
+                data: lateVals,
+                backgroundColor: '#f59e0b',
+                borderRadius: 4
+              },
+              {
+                label: 'Leaves Taken',
+                data: leaveVals,
+                backgroundColor: '#3b82f6',
+                borderRadius: 4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+              y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } } }
+            }
+          }
+        });
+      }
+
+      // 2. Organization Distribution Pie Chart
+      const totalOnTime = staffMetrics.reduce((acc, m) => acc + m.onTime, 0);
+      const totalLate = staffMetrics.reduce((acc, m) => acc + m.late, 0);
+      const totalLeaves = staffMetrics.reduce((acc, m) => acc + m.leaves, 0);
+      const totalAbsences = staffMetrics.reduce((acc, m) => acc + m.absences, 0);
+
+      const ctxPie = document.getElementById('allStaffPunctualityPieChart');
+      if (ctxPie) {
+        if (punctualityChartInstance) punctualityChartInstance.destroy();
+        punctualityChartInstance = new Chart(ctxPie, {
+          type: 'doughnut',
+          data: {
+            labels: ['On-Time Present', 'Late Marks', 'Approved Leaves', 'Absences'],
+            datasets: [{
+              data: [totalOnTime, totalLate, totalLeaves, totalAbsences],
+              backgroundColor: ['#10b981', '#f59e0b', '#3b82f6', '#ef4444'],
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+            },
+            cutout: '65%'
+          }
+        });
+      }
+    }
+
+    // ==========================================
+    // ACTION HANDLERS & MODAL LOGIC
+    // ==========================================
+
+    // Quick Punch Action for Today
+    window.quickPunchStaff = function(staffId, type) {
+      const staff = appData.staff.find(s => s.id === staffId);
+      if (!staff) return;
+
+      const today = getTodayDateStr();
+      const now = new Date();
+      // Format simulated time: if morning, use 09:18, or real current minutes
+      const hours = String(now.getHours()).padStart(2, '0');
+      const mins = String(now.getMinutes()).padStart(2, '0');
+      const punchTime = `${hours}:${mins}`;
+
+      let log = appData.attendance.find(a => a.staffId === staffId && a.date === today);
+
+      if (!log) {
+        // Create new log
+        const punct = evaluatePunctuality(staff, punchTime);
+        log = {
+          id: 'LOG-' + Date.now(),
+          staffId: staffId,
+          date: today,
+          status: punct.isLate ? 'Late' : 'Present',
+          inTime: type === 'in' ? punchTime : (staff.shiftStart || '09:00'),
+          outTime: type === 'out' ? punchTime : '',
+          isLate: punct.isLate,
+          lateMinutes: punct.lateMinutes,
+          workHours: 0,
+          leaveType: '',
+          notes: ''
+        };
+        appData.attendance.push(log);
+      } else {
+        // Update existing log
+        if (type === 'in') {
+          log.inTime = punchTime;
+          const punct = evaluatePunctuality(staff, punchTime);
+          log.isLate = punct.isLate;
+          log.lateMinutes = punct.lateMinutes;
+          log.status = punct.isLate ? 'Late' : 'Present';
+        } else if (type === 'out') {
+          log.outTime = punchTime;
+        }
+        if (log.inTime && log.outTime) {
+          const calc = calculateHoursWorked(log.inTime, log.outTime);
+          log.workHours = calc.hours;
+        }
+      }
+
+      saveAppData();
+      renderDashboard();
+      showToast(`${staff.name} clocked ${type === 'in' ? 'IN' : 'OUT'} at ${formatTimeDisplay(punchTime)}`, 'success');
+    };
+
+    // Open Staff Modal for Create
+    function openCreateStaffModal() {
+      document.getElementById('staffModalTitle').textContent = 'Add New Staff Member';
+      document.getElementById('staffFormMode').value = 'create';
+      document.getElementById('staffFormOriginalId').value = '';
+      document.getElementById('staffForm').reset();
+
+      // Suggested Staff ID
+      const nextNum = appData.staff.length + 1001;
+      document.getElementById('staffInputId').value = `EMP-${nextNum}`;
+      document.getElementById('staffInputId').disabled = false;
+      document.getElementById('staffInputShiftStart').value = appData.settings.defaultShiftStart;
+      document.getElementById('staffInputShiftEnd').value = appData.settings.defaultShiftEnd;
+      document.getElementById('staffInputGrace').value = appData.settings.defaultGraceMinutes;
+      document.getElementById('staffInputJoined').value = getTodayDateStr();
+
+      document.getElementById('staffModal').classList.remove('hidden');
+    }
+
+    // Open Staff Modal for Edit
+    window.editStaffProfile = function(staffId) {
+      const staff = appData.staff.find(s => s.id === staffId);
+      if (!staff) return;
+
+      document.getElementById('staffModalTitle').textContent = `Edit Staff: ${staff.name}`;
+      document.getElementById('staffFormMode').value = 'edit';
+      document.getElementById('staffFormOriginalId').value = staff.id;
+
+      document.getElementById('staffInputId').value = staff.id;
+      document.getElementById('staffInputId').disabled = true; // prevent primary ID change
+      document.getElementById('staffInputName').value = staff.name;
+      document.getElementById('staffInputDept').value = staff.department;
+      document.getElementById('staffInputRole').value = staff.role;
+      document.getElementById('staffInputEmail').value = staff.email || '';
+      document.getElementById('staffInputPhone').value = staff.phone || '';
+      document.getElementById('staffInputShiftStart').value = staff.shiftStart || '09:00';
+      document.getElementById('staffInputShiftEnd').value = staff.shiftEnd || '18:00';
+      document.getElementById('staffInputGrace').value = staff.graceMinutes || 15;
+      document.getElementById('staffInputJoined').value = staff.joinedDate || '';
+      document.getElementById('staffInputStatus').value = staff.status || 'Active';
+
+      document.getElementById('staffModal').classList.remove('hidden');
+    };
+
+    // Delete Staff Profile
+    window.deleteStaffProfile = function(staffId) {
+      const staff = appData.staff.find(s => s.id === staffId);
+      if (!staff) return;
+
+      openConfirmModal(
+        'Delete Staff Profile',
+        `Are you sure you want to remove ${staff.name} (${staff.id})? All associated attendance logs will be permanently deleted.`,
+        () => {
+          appData.staff = appData.staff.filter(s => s.id !== staffId);
+          appData.attendance = appData.attendance.filter(a => a.staffId !== staffId);
+          saveAppData();
+          renderStaffDirectory();
+          renderDashboard();
+          showToast(`Staff member ${staff.name} was removed.`, 'info');
+        },
+        'Delete Staff',
+        true
+      );
+    };
+
+    // Open Individual Report directly from directory or table
+    window.openIndividualReportFor = function(staffId) {
+      switchTab('individual-report');
+      const staffSelect = document.getElementById('indivReportStaffSelect');
+      staffSelect.value = staffId;
+      renderIndividualReport();
+    };
+
+    // Open Edit Attendance Modal
+    window.openEditAttendanceModal = function(logId, staffId, date) {
+      const modal = document.getElementById('attendanceModal');
+      const form = document.getElementById('attendanceForm');
+      form.reset();
+
+      // Populate Staff dropdown in modal
+      const staffSelect = document.getElementById('attFormStaffSelect');
+      staffSelect.innerHTML = '<option value="">-- Choose Staff --</option>';
+      appData.staff.forEach(s => {
+        staffSelect.innerHTML += `<option value="${s.id}">${s.name} (${s.id})</option>`;
+      });
+
+      document.getElementById('attRecordEditId').value = logId || '';
+      staffSelect.value = staffId || (appData.staff.length > 0 ? appData.staff[0].id : '');
+      document.getElementById('attFormDate').value = date || getTodayDateStr();
+
+      let log = null;
+      if (logId) {
+        log = appData.attendance.find(a => a.id === logId);
+      } else if (staffId && date) {
+        log = appData.attendance.find(a => a.staffId === staffId && a.date === date);
+      }
+
+      if (log) {
+        document.getElementById('attendanceModalTitle').textContent = 'Edit Attendance Record';
+        document.getElementById('attRecordEditId').value = log.id;
+        document.getElementById('attFormStatus').value = log.status || 'Present';
+        document.getElementById('attFormInTime').value = log.inTime || '';
+        document.getElementById('attFormOutTime').value = log.outTime || '';
+        document.getElementById('attFormLeaveType').value = log.leaveType || 'Casual Leave (CL)';
+        document.getElementById('attFormNotes').value = log.notes || '';
+      } else {
+        document.getElementById('attendanceModalTitle').textContent = 'Record Attendance / Leave';
+        const staff = appData.staff.find(s => s.id === staffSelect.value);
+        document.getElementById('attFormStatus').value = 'Present';
+        document.getElementById('attFormInTime').value = staff ? staff.shiftStart : '09:00';
+        document.getElementById('attFormOutTime').value = staff ? staff.shiftEnd : '18:00';
+      }
+
+      handleAttModalStatusChange();
+      modal.classList.remove('hidden');
+    };
+
+    // Delete Attendance Record
+    window.deleteAttendanceRecord = function(logId) {
+      openConfirmModal(
+        'Delete Attendance Log',
+        'Are you sure you want to remove this attendance record? This will alter punctuality and monthly reports.',
+        () => {
+          appData.attendance = appData.attendance.filter(a => a.id !== logId);
+          saveAppData();
+          renderAttendanceLog();
+          renderDashboard();
+          showToast('Attendance record deleted.', 'info');
+        },
+        'Delete Record',
+        true
+      );
+    };
+
+    function handleAttModalStatusChange() {
+      const status = document.getElementById('attFormStatus').value;
+      const timesContainer = document.getElementById('attFormTimesContainer');
+      const leaveContainer = document.getElementById('attFormLeaveContainer');
+
+      if (status === 'Present' || status === 'Half Day') {
+        timesContainer.classList.remove('hidden');
+        leaveContainer.classList.add('hidden');
+      } else if (status === 'Leave') {
+        timesContainer.classList.add('hidden');
+        leaveContainer.classList.remove('hidden');
+      } else if (status === 'Absent') {
+        timesContainer.classList.add('hidden');
+        leaveContainer.classList.add('hidden');
+      }
+    }
+
+    // ==========================================
+    // EXPORT FUNCTIONS (CSV GENERATORS)
+    // ==========================================
+    function exportToCsvFile(filename, rows) {
+      const csvContent = rows.map(e => e.map(item => `"${String(item || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast(`Exported ${filename}`, 'success');
+    }
+
+    // 1. Export Staff Directory CSV
+    function exportStaffCsv() {
+      const headers = ['Staff ID', 'Full Name', 'Department', 'Role', 'Email', 'Phone', 'Shift Start', 'Shift End', 'Grace Mins', 'Joined Date', 'Status'];
+      const rows = [headers];
+      appData.staff.forEach(s => {
+        rows.push([
+          s.id, s.name, s.department, s.role, s.email || '', s.phone || '',
+          s.shiftStart, s.shiftEnd, s.graceMinutes, s.joinedDate || '', s.status
+        ]);
+      });
+      exportToCsvFile(`staff_directory_${getTodayDateStr()}.csv`, rows);
+    }
+
+    // 2. Export Attendance Log CSV
+    function exportAttendanceCsv() {
+      const headers = ['Record ID', 'Date', 'Staff ID', 'Staff Name', 'Department', 'Status', 'In Time', 'Out Time', 'Hours', 'Late Mark', 'Late Mins', 'Leave Type', 'Remarks'];
+      const rows = [headers];
+      appData.attendance.forEach(l => {
+        const staff = appData.staff.find(s => s.id === l.staffId);
+        rows.push([
+          l.id, l.date, l.staffId, staff ? staff.name : '', staff ? staff.department : '',
+          l.status, l.inTime || '', l.outTime || '', l.workHours || 0,
+          l.isLate ? 'YES' : 'NO', l.lateMinutes || 0, l.leaveType || '', l.notes || ''
+        ]);
+      });
+      exportToCsvFile(`attendance_logs_${getTodayDateStr()}.csv`, rows);
+    }
+
+    // 3. Export Individual Staff Monthly Report CSV
+    function exportIndividualReportCsv() {
+      const staffSelect = document.getElementById('indivReportStaffSelect');
+      const staff = appData.staff.find(s => s.id === staffSelect.value);
+      if (!staff) return;
+
+      const monthVal = document.getElementById('indivReportMonthSelect').value || '2026-10';
+      const [year, month] = monthVal.split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+
+      const headers = ['Date', 'Day', 'Staff ID', 'Staff Name', 'Department', 'Status', 'In Time', 'Out Time', 'Duration (Hours)', 'Late Mark', 'Late Minutes', 'Remarks'];
+      const rows = [headers];
+
+      const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${monthPrefix}-${String(d).padStart(2, '0')}`;
+        const dt = new Date(year, month - 1, d);
+        const dayOfWeek = dt.getDay();
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
+        const log = appData.attendance.find(a => a.staffId === staff.id && a.date === dateStr);
+
+        let status = isWeekend ? 'Weekend' : (log ? log.status : 'Absent');
+        let inTime = log ? (log.inTime || '') : '';
+        let outTime = log ? (log.outTime || '') : '';
+        let hours = log ? (log.workHours || 0) : 0;
+        let isLate = log ? (log.isLate ? 'YES' : 'NO') : 'NO';
+        let lateMins = log ? (log.lateMinutes || 0) : 0;
+        let remarks = log ? ((log.leaveType ? log.leaveType + ' - ' : '') + (log.notes || '')) : '';
+
+        rows.push([
+          dateStr, dayNames[dayOfWeek], staff.id, staff.name, staff.department,
+          status, inTime, outTime, hours, isLate, lateMins, remarks
+        ]);
+      }
+
+      exportToCsvFile(`monthly_report_${staff.id}_${monthVal}.csv`, rows);
+    }
+
+    // 4. Export All Staff Monthly Summary Report CSV
+    function exportAllStaffReportCsv() {
+      const monthVal = document.getElementById('allReportMonthSelect').value || '2026-10';
+      const [year, month] = monthVal.split('-').map(Number);
+      const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+      const daysInMonth = new Date(year, month, 0).getDate();
+
+      let workdays = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dw = new Date(year, month - 1, d).getDay();
+        if (dw !== 0 && dw !== 6) workdays++;
+      }
+
+      const headers = ['Staff ID', 'Staff Name', 'Department', 'Designation', 'Total Workdays', 'Present Days', 'Late Marks Count', 'Total Late Minutes', 'Leaves Taken', 'Absences', 'Total Hours Logged', 'Attendance Rate %', 'Punctuality Rate %'];
+      const rows = [headers];
+
+      appData.staff.filter(s => s.status === 'Active').forEach(s => {
+        const sLogs = appData.attendance.filter(a => a.staffId === s.id && a.date.startsWith(monthPrefix));
+        const logMap = {};
+        sLogs.forEach(l => { logMap[l.date] = l; });
+
+        let present = 0;
+        let onTime = 0;
+        let late = 0;
+        let lateMins = 0;
+        let leaves = 0;
+        let absences = 0;
+        let hours = 0;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${monthPrefix}-${String(d).padStart(2, '0')}`;
+          const dw = new Date(year, month - 1, d).getDay();
+          if (dw === 0 || dw === 6) continue;
+
+          const log = logMap[dateStr];
+          if (log) {
+            if (log.status === 'Present') {
+              present++;
+              if (log.isLate) {
+                late++;
+                lateMins += (log.lateMinutes || 0);
+              } else {
+                onTime++;
+              }
+            } else if (log.status === 'Late') {
+              present++;
+              late++;
+              lateMins += (log.lateMinutes || 0);
+            } else if (log.status === 'Half Day') {
+              present += 0.5;
+              if (log.isLate) {
+                late++;
+                lateMins += (log.lateMinutes || 0);
+              }
+            } else if (log.status === 'Leave') {
+              leaves++;
+            } else if (log.status === 'Absent') {
+              absences++;
+            }
+            if (log.workHours) hours += log.workHours;
+          } else if (dateStr <= getTodayDateStr()) {
+            absences++;
+          }
+        }
+
+        const evaluatedWorkdays = Math.min(workdays, present + leaves + absences) || workdays;
+        const attRate = evaluatedWorkdays > 0 ? Math.round((present / evaluatedWorkdays) * 100) : 0;
+        const punctRate = present > 0 ? Math.round((onTime / present) * 100) : 0;
+
+        rows.push([
+          s.id, s.name, s.department, s.role, workdays, present,
+          late, lateMins, leaves, absences, parseFloat(hours.toFixed(1)),
+          `${attRate}%`, `${punctRate}%`
+        ]);
+      });
+
+      exportToCsvFile(`all_staff_monthly_summary_${monthVal}.csv`, rows);
+    }
+
+    // ==========================================
+    // INITIALIZATION & EVENT LISTENERS
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', () => {
+      // Load Data
+      loadAppData();
+
+      // Start Clock
+      function updateClock() {
+        const now = new Date();
+        const clockEl = document.getElementById('currentClock');
+        if (clockEl) {
+          clockEl.textContent = now.toLocaleTimeString('en-US', { hour12: true });
+        }
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // Tab Buttons
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tab = btn.getAttribute('data-tab');
+          switchTab(tab);
+        });
+      });
+
+      // Quick Punch modal/buttons
+      document.getElementById('quickPunchBtn').addEventListener('click', () => {
+        switchTab('dashboard');
+        const sel = document.getElementById('quickPunchStaffSelect');
+        sel.focus();
+      });
+
+      document.getElementById('openAddStaffModalBtn').addEventListener('click', openCreateStaffModal);
+      document.getElementById('addStaffModalBtn2').addEventListener('click', openCreateStaffModal);
+      document.getElementById('closeStaffModalBtn').addEventListener('click', () => {
+        document.getElementById('staffModal').classList.add('hidden');
+      });
+      document.getElementById('cancelStaffModalBtn').addEventListener('click', () => {
+        document.getElementById('staffModal').classList.add('hidden');
+      });
+
+      // Staff Form Submission
+      document.getElementById('staffForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const mode = document.getElementById('staffFormMode').value;
+        const staffId = document.getElementById('staffInputId').value.trim();
+        const name = document.getElementById('staffInputName').value.trim();
+        const dept = document.getElementById('staffInputDept').value;
+        const role = document.getElementById('staffInputRole').value.trim();
+        const email = document.getElementById('staffInputEmail').value.trim();
+        const phone = document.getElementById('staffInputPhone').value.trim();
+        const shiftStart = document.getElementById('staffInputShiftStart').value;
+        const shiftEnd = document.getElementById('staffInputShiftEnd').value;
+        const grace = parseInt(document.getElementById('staffInputGrace').value, 10) || 15;
+        const joined = document.getElementById('staffInputJoined').value;
+        const status = document.getElementById('staffInputStatus').value;
+
+        if (mode === 'create') {
+          // Check ID uniqueness
+          if (appData.staff.some(s => s.id === staffId)) {
+            showToast(`Staff ID ${staffId} already exists! Please choose another.`, 'error');
+            return;
+          }
+
+          const newStaff = {
+            id: staffId,
+            name,
+            department: dept,
+            role,
+            email,
+            phone,
+            shiftStart,
+            shiftEnd,
+            graceMinutes: grace,
+            joinedDate: joined,
+            status
+          };
+          appData.staff.push(newStaff);
+          showToast(`Staff member ${name} created successfully!`, 'success');
+        } else {
+          // Edit
+          const origId = document.getElementById('staffFormOriginalId').value;
+          const staff = appData.staff.find(s => s.id === origId);
+          if (staff) {
+            staff.name = name;
+            staff.department = dept;
+            staff.role = role;
+            staff.email = email;
+            staff.phone = phone;
+            staff.shiftStart = shiftStart;
+            staff.shiftEnd = shiftEnd;
+            staff.graceMinutes = grace;
+            staff.joinedDate = joined;
+            staff.status = status;
+            showToast(`Profile for ${name} updated successfully.`, 'success');
+          }
+        }
+
+        saveAppData();
+        document.getElementById('staffModal').classList.add('hidden');
+        renderStaffDirectory();
+        renderDashboard();
+      });
+
+      // Quick Punch Terminal Form Handlers
+      document.getElementById('quickPunchNowBtn').addEventListener('click', () => {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('quickPunchTime').value = `${h}:${m}`;
+      });
+
+      document.getElementById('quickPunchInBtn').addEventListener('click', () => {
+        const staffId = document.getElementById('quickPunchStaffSelect').value;
+        if (!staffId) {
+          showToast('Please select a staff member first', 'warning');
+          return;
+        }
+        const time = document.getElementById('quickPunchTime').value || '09:00';
+        const staff = appData.staff.find(s => s.id === staffId);
+        const today = getTodayDateStr();
+
+        let log = appData.attendance.find(a => a.staffId === staffId && a.date === today);
+        const punct = evaluatePunctuality(staff, time);
+
+        if (!log) {
+          log = {
+            id: 'LOG-' + Date.now(),
+            staffId: staffId,
+            date: today,
+            status: punct.isLate ? 'Late' : 'Present',
+            inTime: time,
+            outTime: '',
+            isLate: punct.isLate,
+            lateMinutes: punct.lateMinutes,
+            workHours: 0,
+            leaveType: '',
+            notes: ''
+          };
+          appData.attendance.push(log);
+        } else {
+          log.inTime = time;
+          log.isLate = punct.isLate;
+          log.lateMinutes = punct.lateMinutes;
+          log.status = punct.isLate ? 'Late' : 'Present';
+          if (log.outTime) {
+            log.workHours = calculateHoursWorked(log.inTime, log.outTime).hours;
+          }
+        }
+
+        saveAppData();
+        renderDashboard();
+        showToast(`${staff.name} clocked IN at ${formatTimeDisplay(time)} (${punct.isLate ? punct.lateMinutes + 'm Late Mark' : 'On-Time'})`, punct.isLate ? 'warning' : 'success');
+      });
+
+      document.getElementById('quickPunchOutBtn').addEventListener('click', () => {
+        const staffId = document.getElementById('quickPunchStaffSelect').value;
+        if (!staffId) {
+          showToast('Please select a staff member first', 'warning');
+          return;
+        }
+        const time = document.getElementById('quickPunchTime').value || '18:00';
+        const staff = appData.staff.find(s => s.id === staffId);
+        const today = getTodayDateStr();
+
+        let log = appData.attendance.find(a => a.staffId === staffId && a.date === today);
+        if (!log) {
+          log = {
+            id: 'LOG-' + Date.now(),
+            staffId: staffId,
+            date: today,
+            status: 'Present',
+            inTime: staff.shiftStart || '09:00',
+            outTime: time,
+            isLate: false,
+            lateMinutes: 0,
+            workHours: 0,
+            leaveType: '',
+            notes: ''
+          };
+          appData.attendance.push(log);
+        } else {
+          log.outTime = time;
+        }
+
+        if (log.inTime && log.outTime) {
+          log.workHours = calculateHoursWorked(log.inTime, log.outTime).hours;
+        }
+
+        saveAppData();
+        renderDashboard();
+        showToast(`${staff.name} clocked OUT at ${formatTimeDisplay(time)} (${log.workHours}h logged)`, 'success');
+      });
+
+      // Today Roster Search Filter
+      document.getElementById('todaySearchInput').addEventListener('input', renderTodayRosterTable);
+
+      // Dashboard Bulk Present Button
+      document.getElementById('dashboardBulkPresentBtn').addEventListener('click', () => {
+        const today = getTodayDateStr();
+        const activeStaff = appData.staff.filter(s => s.status === 'Active');
+
+        activeStaff.forEach(s => {
+          let log = appData.attendance.find(a => a.staffId === s.id && a.date === today);
+          if (!log) {
+            appData.attendance.push({
+              id: 'LOG-' + Date.now() + '-' + s.id,
+              staffId: s.id,
+              date: today,
+              status: 'Present',
+              inTime: s.shiftStart,
+              outTime: s.shiftEnd,
+              isLate: false,
+              lateMinutes: 0,
+              workHours: calculateHoursWorked(s.shiftStart, s.shiftEnd).hours,
+              leaveType: '',
+              notes: 'Bulk on-time marked'
+            });
+          }
+        });
+
+        saveAppData();
+        renderDashboard();
+        showToast('All active staff without entries were marked on-time for today.', 'success');
+      });
+
+      document.getElementById('dashboardLogAttendanceBtn').addEventListener('click', () => {
+        window.openEditAttendanceModal('', '', getTodayDateStr());
+      });
+
+      document.getElementById('viewAllAttendanceBtn').addEventListener('click', () => {
+        switchTab('attendance');
+      });
+
+      // Staff Directory Filters
+      document.getElementById('staffSearchInput').addEventListener('input', renderStaffDirectory);
+      document.getElementById('staffDeptFilter').addEventListener('change', renderStaffDirectory);
+      document.getElementById('staffStatusFilter').addEventListener('change', renderStaffDirectory);
+      document.getElementById('exportStaffCsvBtn').addEventListener('click', exportStaffCsv);
+
+      // Attendance Tab Handlers
+      document.getElementById('openRecordAttendanceModalBtn').addEventListener('click', () => {
+        window.openEditAttendanceModal('', '', getTodayDateStr());
+      });
+      document.getElementById('closeAttendanceModalBtn').addEventListener('click', () => {
+        document.getElementById('attendanceModal').classList.add('hidden');
+      });
+      document.getElementById('cancelAttendanceModalBtn').addEventListener('click', () => {
+        document.getElementById('attendanceModal').classList.add('hidden');
+      });
+      document.getElementById('attFormStatus').addEventListener('change', handleAttModalStatusChange);
+
+      // Dynamic Late mark preview in attendance modal
+      document.getElementById('attFormInTime').addEventListener('input', () => {
+        const staffId = document.getElementById('attFormStaffSelect').value;
+        const inTime = document.getElementById('attFormInTime').value;
+        const preview = document.getElementById('attFormLatePreview');
+        const staff = appData.staff.find(s => s.id === staffId);
+        if (staff && inTime) {
+          const punct = evaluatePunctuality(staff, inTime);
+          if (punct.isLate) {
+            preview.className = 'text-[11px] text-amber-700 flex items-center gap-1.5 font-bold';
+            preview.innerHTML = `
+              <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              Late Mark detected! Arrival is ${punct.lateMinutes} minutes past shift start (${staff.shiftStart} + ${staff.graceMinutes}m grace).
+            `;
+            preview.classList.remove('hidden');
+          } else {
+            preview.className = 'text-[11px] text-emerald-700 flex items-center gap-1.5 font-semibold';
+            preview.innerHTML = `
+              <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              On-time arrival within shift grace window.
+            `;
+            preview.classList.remove('hidden');
+          }
+        } else {
+          preview.classList.add('hidden');
+        }
+      });
+
+      // Attendance Form Submission
+      document.getElementById('attendanceForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const editId = document.getElementById('attRecordEditId').value;
+        const staffId = document.getElementById('attFormStaffSelect').value;
+        const date = document.getElementById('attFormDate').value;
+        const status = document.getElementById('attFormStatus').value;
+        const inTime = document.getElementById('attFormInTime').value;
+        const outTime = document.getElementById('attFormOutTime').value;
+        const leaveType = document.getElementById('attFormLeaveType').value;
+        const notes = document.getElementById('attFormNotes').value.trim();
+
+        const staff = appData.staff.find(s => s.id === staffId);
+        if (!staff) {
+          showToast('Staff member not found', 'error');
+          return;
+        }
+
+        let isLate = false;
+        let lateMins = 0;
+        let finalStatus = status;
+
+        if (status === 'Present' || status === 'Half Day') {
+          const punct = evaluatePunctuality(staff, inTime);
+          isLate = punct.isLate;
+          lateMins = punct.lateMinutes;
+          if (isLate && status === 'Present') {
+            finalStatus = 'Late';
+          }
+        }
+
+        let workHours = 0;
+        if (inTime && outTime) {
+          workHours = calculateHoursWorked(inTime, outTime).hours;
+        }
+
+        if (editId) {
+          // Edit existing log
+          const log = appData.attendance.find(a => a.id === editId);
+          if (log) {
+            log.staffId = staffId;
+            log.date = date;
+            log.status = finalStatus;
+            log.inTime = inTime;
+            log.outTime = outTime;
+            log.isLate = isLate;
+            log.lateMinutes = lateMins;
+            log.workHours = workHours;
+            log.leaveType = (status === 'Leave') ? leaveType : '';
+            log.notes = notes;
+            showToast('Attendance record updated.', 'success');
+          }
+        } else {
+          // Check if entry for staff on that date already exists
+          let existing = appData.attendance.find(a => a.staffId === staffId && a.date === date);
+          if (existing) {
+            existing.status = finalStatus;
+            existing.inTime = inTime;
+            existing.outTime = outTime;
+            existing.isLate = isLate;
+            existing.lateMinutes = lateMins;
+            existing.workHours = workHours;
+            existing.leaveType = (status === 'Leave') ? leaveType : '';
+            existing.notes = notes;
+            showToast('Updated existing attendance record for ' + date, 'info');
+          } else {
+            appData.attendance.push({
+              id: 'LOG-' + Date.now(),
+              staffId,
+              date,
+              status: finalStatus,
+              inTime,
+              outTime,
+              isLate,
+              lateMinutes: lateMins,
+              workHours,
+              leaveType: (status === 'Leave') ? leaveType : '',
+              notes
+            });
+            showToast('New attendance record logged.', 'success');
+          }
+        }
+
+        saveAppData();
+        document.getElementById('attendanceModal').classList.add('hidden');
+        renderAttendanceLog();
+        renderDashboard();
+      });
+
+      // Attendance Filter Handlers
+      document.getElementById('attDateFilter').addEventListener('change', renderAttendanceLog);
+      document.getElementById('attStaffFilter').addEventListener('change', renderAttendanceLog);
+      document.getElementById('attStatusFilter').addEventListener('change', renderAttendanceLog);
+      document.getElementById('attFilterClearDateBtn').addEventListener('click', () => {
+        document.getElementById('attDateFilter').value = '';
+        renderAttendanceLog();
+      });
+      document.getElementById('exportAttendanceCsvBtn').addEventListener('click', exportAttendanceCsv);
+
+      // Individual Monthly Report Controls
+      document.getElementById('indivReportStaffSelect').addEventListener('change', renderIndividualReport);
+      document.getElementById('indivReportMonthSelect').addEventListener('change', renderIndividualReport);
+      document.getElementById('exportIndivCsvBtn').addEventListener('click', exportIndividualReportCsv);
+      document.getElementById('printIndivReportBtn').addEventListener('click', () => {
+        window.print();
+      });
+
+      // All Staff Monthly Report Controls
+      document.getElementById('allReportMonthSelect').addEventListener('change', renderAllStaffReport);
+      document.getElementById('allReportDeptSelect').addEventListener('change', renderAllStaffReport);
+      document.getElementById('allReportSearchInput').addEventListener('input', renderAllStaffReport);
+      document.getElementById('exportAllReportCsvBtn').addEventListener('click', exportAllStaffReportCsv);
+      document.getElementById('printAllReportBtn').addEventListener('click', () => {
+        window.print();
+      });
+
+      // Settings Shift Form Handlers
+      document.getElementById('settingsShiftForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        appData.settings.defaultShiftStart = document.getElementById('settingsDefaultShiftStart').value;
+        appData.settings.defaultShiftEnd = document.getElementById('settingsDefaultShiftEnd').value;
+        appData.settings.defaultGraceMinutes = parseInt(document.getElementById('settingsDefaultGrace').value, 10) || 15;
+        appData.settings.lateThresholdWarning = parseInt(document.getElementById('settingsLateThreshold').value, 10) || 3;
+        saveAppData();
+        showToast('Shift and punctuality rules saved successfully.', 'success');
+      });
+
+      // Backup JSON Export Handler
+      document.getElementById('backupDownloadBtn').addEventListener('click', () => {
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(appData, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute('href', dataStr);
+        downloadAnchor.setAttribute('download', `staffpulse_backup_${getTodayDateStr()}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        showToast('Database exported as JSON.', 'success');
+      });
+
+      // Backup JSON Import Handler
+      document.getElementById('backupFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const parsed = JSON.parse(event.target.result);
+            if (parsed && Array.isArray(parsed.staff) && Array.isArray(parsed.attendance)) {
+              appData = parsed;
+              saveAppData();
+              renderDashboard();
+              renderStaffDirectory();
+              showToast('System database restored successfully!', 'success');
+            } else {
+              showToast('Invalid backup file structure.', 'error');
+            }
+          } catch (err) {
+            showToast('Failed to parse JSON file.', 'error');
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      // Reset to Demo Data Handler
+      document.getElementById('resetDemoBtn').addEventListener('click', () => {
+        openConfirmModal(
+          'Reset to Sample Dataset',
+          'Are you sure you want to reset all staff, attendance logs, and settings to the default sample dataset? This will overwrite your changes.',
+          () => {
+            appData = {
+              settings: { ...defaultSettings },
+              staff: JSON.parse(JSON.stringify(defaultStaff)),
+              attendance: generateDemoAttendance(defaultStaff)
+            };
+            saveAppData();
+            renderDashboard();
+            renderStaffDirectory();
+            renderAttendanceLog();
+            showToast('System database reset to sample demo data.', 'info');
+          },
+          'Reset Data',
+          true
+        );
+      });
+
+      // Confirm Modal Cancel & Action buttons
+      document.getElementById('confirmModalCancelBtn').addEventListener('click', closeConfirmModal);
+      document.getElementById('confirmModalActionBtn').addEventListener('click', () => {
+        if (typeof confirmCallback === 'function') {
+          confirmCallback();
+        }
+        closeConfirmModal();
+      });
+
+      // Initial Render
+      renderDashboard();
+    });
+  </script>
+</body>
+</html>
