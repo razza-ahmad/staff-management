@@ -199,7 +199,7 @@
         <div>
           <span class="inline-block px-2.5 py-1 rounded-md bg-white/20 text-xs font-semibold backdrop-blur-xs mb-2">Today's Operation Desk</span>
           <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight" id="dashboardGreeting">Daily Attendance Monitor</h1>
-          <p class="text-indigo-100 text-sm mt-1" id="dashboardSubtext">Tracking real-time check-ins, late marks, leaves, and absences for today.</p>
+          <p class="text-indigo-100 text-sm mt-1" id="dashboardSubtext">Tracking real-time check-ins, late marks, leaves, and absences for <span id="dashboardActiveDateBanner" class="font-bold underline decoration-white/40">today</span>.</p>
         </div>
         <div class="flex items-center gap-3">
           <button id="dashboardBulkPresentBtn" type="button" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold backdrop-blur-xs transition-all flex items-center gap-2">
@@ -339,11 +339,16 @@
           <div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100 mb-4">
               <div>
-                <h2 class="text-base font-bold text-slate-900">Today's Staff Roster (<span id="todayRosterDate">Today</span>)</h2>
-                <p class="text-xs text-slate-500">Live attendance log for current workday</p>
+                <h2 class="text-base font-bold text-slate-900">Staff Attendance Roster (<span id="todayRosterDate">Today</span>)</h2>
+                <p class="text-xs text-slate-500" id="todayRosterSubtext">Live attendance log for selected workday</p>
               </div>
-              <div class="flex items-center gap-2">
-                <input type="text" id="todaySearchInput" placeholder="Filter staff..." class="text-xs rounded-lg border-slate-200 p-2 border focus:ring-brand-500 focus:border-brand-500 w-36 sm:w-44">
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                  <label for="dashboardDatePicker" class="text-[11px] font-semibold text-slate-600">Date:</label>
+                  <input type="date" id="dashboardDatePicker" class="text-xs rounded border border-slate-200 p-1 bg-white focus:ring-brand-500 focus:border-brand-500">
+                  <button type="button" id="dashboardTodayBtn" class="px-2 py-0.5 text-[11px] font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 rounded border border-brand-200 transition-colors">Today</button>
+                </div>
+                <input type="text" id="todaySearchInput" placeholder="Filter staff..." class="text-xs rounded-lg border-slate-200 p-2 border focus:ring-brand-500 focus:border-brand-500 w-32 sm:w-36">
               </div>
             </div>
 
@@ -406,10 +411,10 @@
           </div>
           <select id="staffDeptFilter" class="text-xs py-2 px-3 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
             <option value="">All Departments</option>
-            <option value="Engineering">Trainer</option>
+            <option value="Engineering">Engineering</option>
             <option value="Operations">Operations</option>
             <option value="HR & Admin">HR & Admin</option>
-            <option value="Sales & Marketing">Sales</option>
+            <option value="Sales & Marketing">Sales & Marketing</option>
             <option value="Finance">Finance</option>
           </select>
           <select id="staffStatusFilter" class="text-xs py-2 px-3 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
@@ -1395,10 +1400,17 @@
         }
       }
 
-      // September 2026 (full 30 days)
-      buildMonthLogs(2026, 8, 30);
-      // October 2026 (up to day 19, which is current date)
-      buildMonthLogs(2026, 9, 19);
+      const now = new Date();
+      const currYear = now.getFullYear();
+      const currMonth = now.getMonth(); // 0-indexed
+      const currDay = now.getDate();
+
+      // Build previous month (full)
+      const prevMonthLastDate = new Date(currYear, currMonth, 0);
+      buildMonthLogs(prevMonthLastDate.getFullYear(), prevMonthLastDate.getMonth(), prevMonthLastDate.getDate());
+
+      // Build current month up to today
+      buildMonthLogs(currYear, currMonth, currDay);
 
       return logs;
     }
@@ -1431,6 +1443,95 @@
         attendance: generateDemoAttendance(defaultStaff)
       };
       saveAppData();
+    }
+
+    // Ensure logs are seeded up to current date if localStorage had older data
+    function ensureDataUpToDate() {
+      const todayStr = getTodayDateStr();
+      const activeStaff = appData.staff.filter(s => s.status === 'Active');
+      if (activeStaff.length === 0) return;
+
+      const hasTodayLogs = appData.attendance.some(a => a.date === todayStr);
+      if (!hasTodayLogs && appData.attendance.length > 0) {
+        const sortedLogs = [...appData.attendance].sort((a, b) => b.date.localeCompare(a.date));
+        const latestLog = sortedLogs[0];
+        if (latestLog && latestLog.date < todayStr) {
+          const parts = latestLog.date.split('-').map(Number);
+          let dt = new Date(parts[0], parts[1] - 1, parts[2]);
+          dt.setDate(dt.getDate() + 1);
+
+          const now = new Date();
+          const todayDt = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+          let counter = appData.attendance.length + 1;
+          while (dt <= todayDt) {
+            const dw = dt.getDay();
+            if (dw !== 0 && dw !== 6) { // Weekday
+              const dStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+              const dayNum = dt.getDate();
+              activeStaff.forEach((emp, empIdx) => {
+                const shiftStartMins = timeToMins(emp.shiftStart);
+                const graceMins = emp.graceMinutes || 15;
+                const thresholdMins = shiftStartMins + graceMins;
+                const shiftEndMins = timeToMins(emp.shiftEnd);
+                const seed = (dayNum * 13 + empIdx * 7) % 100;
+
+                let status = 'Present';
+                let inTime = '';
+                let outTime = '';
+                let isLate = false;
+                let lateMinutes = 0;
+                let leaveType = '';
+                let notes = '';
+
+                if (seed < 72) {
+                  const variation = ((seed * 3) % 20) - 10;
+                  const arrivalMins = shiftStartMins + variation;
+                  inTime = minsToTime(arrivalMins);
+                  outTime = minsToTime(shiftEndMins + ((seed % 5) * 10));
+                  if (arrivalMins > thresholdMins) {
+                    isLate = true;
+                    lateMinutes = arrivalMins - shiftStartMins;
+                    status = 'Late';
+                  }
+                } else if (seed < 86) {
+                  const delay = 16 + (seed % 30);
+                  const arrivalMins = shiftStartMins + delay;
+                  inTime = minsToTime(arrivalMins);
+                  outTime = minsToTime(shiftEndMins + 15);
+                  isLate = true;
+                  lateMinutes = delay;
+                  status = 'Late';
+                  notes = 'Commute delay';
+                } else if (seed < 94) {
+                  status = 'Leave';
+                  leaveType = seed % 2 === 0 ? 'Casual Leave (CL)' : 'Sick Leave (SL)';
+                  notes = 'Approved leave';
+                } else {
+                  status = 'Absent';
+                  notes = 'Unplanned absence';
+                }
+                const hrs = (inTime && outTime) ? calculateHoursWorked(inTime, outTime).hours : 0;
+                appData.attendance.push({
+                  id: 'LOG-' + (counter++),
+                  staffId: emp.id,
+                  date: dStr,
+                  status: isLate ? 'Late' : status,
+                  inTime: inTime,
+                  outTime: outTime,
+                  isLate: isLate,
+                  lateMinutes: lateMinutes,
+                  workHours: hrs,
+                  leaveType: leaveType,
+                  notes: notes
+                });
+              });
+            }
+            dt.setDate(dt.getDate() + 1);
+          }
+          saveAppData();
+        }
+      }
     }
 
     // Save to LocalStorage
@@ -1555,11 +1656,36 @@
     }
 
     // ==========================================
-    // DATE & TIME HELPERS
+    // DATE & TIME HELPERS (DYNAMIC REAL TIME)
     // ==========================================
     function getTodayDateStr() {
-      // Anchored to system metadata: 2026-10-19
-      return '2026-10-19';
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatFullDate(dObj = new Date()) {
+      return dObj.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    function formatShortDate(dObj = new Date()) {
+      return dObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function parseDateStr(str) {
+      if (!str) return new Date();
+      const parts = str.split('-').map(Number);
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    function getDashboardActiveDate() {
+      const picker = document.getElementById('dashboardDatePicker');
+      if (picker && picker.value) {
+        return picker.value;
+      }
+      return getTodayDateStr();
     }
 
     function formatTimeDisplay(timeStr) {
@@ -1616,12 +1742,37 @@
     }
 
     // ==========================================
-    // RENDER: DASHBOARD (TODAY)
+    // RENDER: DASHBOARD (TODAY & SELECTED DATE)
     // ==========================================
     function renderDashboard() {
+      const activeDate = getDashboardActiveDate();
       const today = getTodayDateStr();
-      document.getElementById('currentDateDisplay').textContent = 'Monday, 19 October 2026';
-      document.getElementById('todayRosterDate').textContent = '19 Oct 2026';
+      const now = new Date();
+
+      // Ensure picker has activeDate set
+      const picker = document.getElementById('dashboardDatePicker');
+      if (picker && !picker.value) {
+        picker.value = activeDate;
+      }
+
+      // Live navbar date display (real time)
+      const navbarDateEl = document.getElementById('currentDateDisplay');
+      if (navbarDateEl) {
+        navbarDateEl.textContent = formatFullDate(now);
+      }
+
+      // Roster date badge and banner text
+      const activeDateObj = parseDateStr(activeDate);
+      const isToday = (activeDate === today);
+      const rosterDateEl = document.getElementById('todayRosterDate');
+      if (rosterDateEl) {
+        rosterDateEl.textContent = isToday ? `Today, ${formatShortDate(activeDateObj)}` : formatShortDate(activeDateObj);
+      }
+
+      const bannerDateEl = document.getElementById('dashboardActiveDateBanner');
+      if (bannerDateEl) {
+        bannerDateEl.textContent = isToday ? `Today (${formatShortDate(activeDateObj)})` : formatShortDate(activeDateObj);
+      }
 
       // Update Shift info in quick punch card
       document.getElementById('quickShiftStartDisplay').textContent = formatTimeDisplay(appData.settings.defaultShiftStart);
@@ -1631,8 +1782,8 @@
       document.getElementById('kpiTotalStaff').textContent = activeStaff.length;
       document.getElementById('tabStaffCount').textContent = appData.staff.length;
 
-      // Find today's logs
-      const todayLogs = appData.attendance.filter(a => a.date === today);
+      // Find active date's logs
+      const todayLogs = appData.attendance.filter(a => a.date === activeDate);
       const todayLogMap = {};
       todayLogs.forEach(l => {
         todayLogMap[l.staffId] = l;
@@ -1692,11 +1843,12 @@
     }
 
     function renderTodayRosterTable() {
+      const activeDate = getDashboardActiveDate();
       const today = getTodayDateStr();
       const activeStaff = appData.staff.filter(s => s.status === 'Active');
       const searchVal = (document.getElementById('todaySearchInput').value || '').toLowerCase();
 
-      const todayLogs = appData.attendance.filter(a => a.date === today);
+      const todayLogs = appData.attendance.filter(a => a.date === activeDate);
       const todayLogMap = {};
       todayLogs.forEach(l => {
         todayLogMap[l.staffId] = l;
@@ -1770,7 +1922,7 @@
               <button onclick="window.quickPunchStaff('${s.id}', 'out')" title="Clock Out" class="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"/></svg>
               </button>
-              <button onclick="window.openEditAttendanceModal('${log ? log.id : ''}', '${s.id}', '${today}')" title="Edit Entry" class="p-1 rounded bg-slate-100 hover:bg-brand-100 text-slate-600 hover:text-brand-700 transition-colors">
+              <button onclick="window.openEditAttendanceModal('${log ? log.id : ''}', '${s.id}', '${activeDate}')" title="Edit Entry" class="p-1 rounded bg-slate-100 hover:bg-brand-100 text-slate-600 hover:text-brand-700 transition-colors">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
               </button>
             </div>
@@ -1957,7 +2109,8 @@
       // Ensure month selector has value (default: 2026-10)
       const monthInput = document.getElementById('indivReportMonthSelect');
       if (!monthInput.value) {
-        monthInput.value = '2026-10';
+        const now = new Date();
+        monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       }
 
       // Populate Staff Dropdown
@@ -2253,7 +2406,8 @@
     function renderAllStaffReport() {
       const monthInput = document.getElementById('allReportMonthSelect');
       if (!monthInput.value) {
-        monthInput.value = '2026-10';
+        const now = new Date();
+        monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       }
 
       const monthVal = monthInput.value; // "2026-10"
@@ -2562,14 +2716,13 @@
       const staff = appData.staff.find(s => s.id === staffId);
       if (!staff) return;
 
-      const today = getTodayDateStr();
+      const punchDate = getDashboardActiveDate();
       const now = new Date();
-      // Format simulated time: if morning, use 09:18, or real current minutes
       const hours = String(now.getHours()).padStart(2, '0');
       const mins = String(now.getMinutes()).padStart(2, '0');
       const punchTime = `${hours}:${mins}`;
 
-      let log = appData.attendance.find(a => a.staffId === staffId && a.date === today);
+      let log = appData.attendance.find(a => a.staffId === staffId && a.date === punchDate);
 
       if (!log) {
         // Create new log
@@ -2577,7 +2730,7 @@
         log = {
           id: 'LOG-' + Date.now(),
           staffId: staffId,
-          date: today,
+          date: punchDate,
           status: punct.isLate ? 'Late' : 'Present',
           inTime: type === 'in' ? punchTime : (staff.shiftStart || '09:00'),
           outTime: type === 'out' ? punchTime : '',
@@ -2932,16 +3085,35 @@
       // Load Data
       loadAppData();
 
-      // Start Clock
-      function updateClock() {
+      // Start Real-Time Clock & Dynamic Date
+      function updateClockAndDate() {
         const now = new Date();
         const clockEl = document.getElementById('currentClock');
         if (clockEl) {
           clockEl.textContent = now.toLocaleTimeString('en-US', { hour12: true });
         }
+        const dateEl = document.getElementById('currentDateDisplay');
+        if (dateEl) {
+          dateEl.textContent = formatFullDate(now);
+        }
+
+        // Automatic day rollover check
+        const currentToday = getTodayDateStr();
+        if (window._currentDayTracker && window._currentDayTracker !== currentToday) {
+          window._currentDayTracker = currentToday;
+          const picker = document.getElementById('dashboardDatePicker');
+          if (picker && picker.value < currentToday) {
+            picker.value = currentToday;
+          }
+          renderDashboard();
+        }
       }
-      setInterval(updateClock, 1000);
-      updateClock();
+      window._currentDayTracker = getTodayDateStr();
+      setInterval(updateClockAndDate, 1000);
+      updateClockAndDate();
+
+      // Ensure data is backfilled up to today
+      ensureDataUpToDate();
 
       // Tab Buttons
       document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -3046,16 +3218,16 @@
         }
         const time = document.getElementById('quickPunchTime').value || '09:00';
         const staff = appData.staff.find(s => s.id === staffId);
-        const today = getTodayDateStr();
+        const activeDate = getDashboardActiveDate();
 
-        let log = appData.attendance.find(a => a.staffId === staffId && a.date === today);
+        let log = appData.attendance.find(a => a.staffId === staffId && a.date === activeDate);
         const punct = evaluatePunctuality(staff, time);
 
         if (!log) {
           log = {
             id: 'LOG-' + Date.now(),
             staffId: staffId,
-            date: today,
+            date: activeDate,
             status: punct.isLate ? 'Late' : 'Present',
             inTime: time,
             outTime: '',
@@ -3089,14 +3261,14 @@
         }
         const time = document.getElementById('quickPunchTime').value || '18:00';
         const staff = appData.staff.find(s => s.id === staffId);
-        const today = getTodayDateStr();
+        const activeDate = getDashboardActiveDate();
 
-        let log = appData.attendance.find(a => a.staffId === staffId && a.date === today);
+        let log = appData.attendance.find(a => a.staffId === staffId && a.date === activeDate);
         if (!log) {
           log = {
             id: 'LOG-' + Date.now(),
             staffId: staffId,
-            date: today,
+            date: activeDate,
             status: 'Present',
             inTime: staff.shiftStart || '09:00',
             outTime: time,
@@ -3120,21 +3292,41 @@
         showToast(`${staff.name} clocked OUT at ${formatTimeDisplay(time)} (${log.workHours}h logged)`, 'success');
       });
 
+      // Dashboard Date Picker & Today button
+      const dbDatePicker = document.getElementById('dashboardDatePicker');
+      if (dbDatePicker) {
+        dbDatePicker.value = getTodayDateStr();
+        dbDatePicker.addEventListener('change', () => {
+          renderDashboard();
+        });
+      }
+      const dbTodayBtn = document.getElementById('dashboardTodayBtn');
+      if (dbTodayBtn) {
+        dbTodayBtn.addEventListener('click', () => {
+          const picker = document.getElementById('dashboardDatePicker');
+          if (picker) {
+            picker.value = getTodayDateStr();
+            renderDashboard();
+            showToast('Showing today: ' + formatShortDate(new Date()), 'info');
+          }
+        });
+      }
+
       // Today Roster Search Filter
       document.getElementById('todaySearchInput').addEventListener('input', renderTodayRosterTable);
 
       // Dashboard Bulk Present Button
       document.getElementById('dashboardBulkPresentBtn').addEventListener('click', () => {
-        const today = getTodayDateStr();
+        const activeDate = getDashboardActiveDate();
         const activeStaff = appData.staff.filter(s => s.status === 'Active');
 
         activeStaff.forEach(s => {
-          let log = appData.attendance.find(a => a.staffId === s.id && a.date === today);
+          let log = appData.attendance.find(a => a.staffId === s.id && a.date === activeDate);
           if (!log) {
             appData.attendance.push({
               id: 'LOG-' + Date.now() + '-' + s.id,
               staffId: s.id,
-              date: today,
+              date: activeDate,
               status: 'Present',
               inTime: s.shiftStart,
               outTime: s.shiftEnd,
